@@ -9,6 +9,7 @@
  <h2>2. Composer les moulures</h2>
  <p class="hint">Les cadres sont proposés dans les surfaces disponibles, sans traverser les portes, fenêtres ou radiateurs. Ajustez les marges et espacements dans « Disposition des cadres » ci-dessus.</p>
  <label>Disposition <select id="layout-mode" style="padding:8px;border-radius:7px"><option value="auto">Adaptée aux obstacles</option><option value="three">3 panneaux symétriques (mur libre)</option></select></label>
+ <p class="hint">Aide d’alignement : les panneaux d’une même zone sont répartis à largeur égale et à intervalles réguliers.</p><label>Cadres par zone libre <input id="zone-cols" type="number" min="1" max="8" step="1" value="1"></label>
  <label>Largeur du panneau central (cm) <input id="center-width" type="number" value="125" min="30" step="5"></label>
  <label>Dégagement autour des obstacles (cm) <input id="clearance" type="number" value="8" min="0" step="1"></label>
  <h2 style="margin-top:24px">3. Résultat du calepinage</h2><p id="result-notice" class="hint" role="status"></p>
@@ -58,6 +59,12 @@
      for(const b of bands){const prev=panels.find(p=>Math.abs(p.x-b.x)<.01&&Math.abs(p.w-b.w)<.01&&Math.abs(p.y+p.h-b.y)<.01);if(prev)prev.h+=b.h;else panels.push({...b})}
      // Inner inset avoids touching obstacles and preserves room for the profile.
      panels=panels.map(p=>({x:p.x+2,y:p.y+2,w:p.w-4,h:p.h-4})).filter(p=>p.w>2*profile+8&&p.h>2*profile+8);
+     const cols=Math.max(1,Math.min(8,Math.floor(Number($('zone-cols').value)||1)));
+     panels=panels.flatMap(p=>{
+       const width=(p.w-(cols-1)*gap)/cols;
+       if(width<=2*profile+8)return [p];
+       return Array.from({length:cols},(_,i)=>({x:p.x+i*(width+gap),y:p.y,w:width,h:p.h}));
+     });
    }
    const invalidObs=obs.filter(o=>![o.x,o.y,o.width,o.height].every(v=>Number.isFinite(Number(v)))||Number(o.x)<0||Number(o.y)<0||Number(o.x)+Number(o.width)>w||Number(o.y)+Number(o.height)>h||Number(o.width)<=0||Number(o.height)<=0);
    const collisions=panels.filter(p=>blocked.some(o=>overlap(p,o)));
