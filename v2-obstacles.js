@@ -32,13 +32,20 @@
     notes.className=invalid?'warn':'hint';
   }
   function refresh(){
-    list.innerHTML=objects.map((o,i)=>'<div style="padding:10px 0;border-top:1px solid #e4e5e1"><strong>'+types[o.type]+' '+(i+1)+'</strong> <button type="button" class="secondary" data-remove="'+i+'" style="float:right;padding:5px 8px">Supprimer</button><div style="display:grid;grid-template-columns:1fr 1fr;gap:5px 12px;clear:both;padding-top:8px">'+[['x','X'],['y','Y'],['width','Largeur'],['height','Hauteur']].map(([field,label])=>'<label style="margin:3px 0">'+label+' <input style="width:76px" type="number" step=".1" min="0" data-index="'+i+'" data-field="'+field+'" value="'+escapeHtml(o[field])+'"></label>').join('')+'</div></div>').join('');
+    list.innerHTML=objects.map((o,i)=>'<div style="padding:10px 0;border-top:1px solid #e4e5e1"><strong>'+types[o.type]+' '+(i+1)+'</strong> <button type="button" class="secondary" data-remove="'+i+'" style="float:right;padding:5px 8px">Supprimer</button><div style="display:grid;grid-template-columns:1fr 1fr;gap:5px 12px;clear:both;padding-top:8px">'+[['x','X'],['y','Y'],['width','Largeur'],['height','Hauteur']].map(([field,label])=>'<label style="margin:3px 0">'+label+' <input style="width:76px" type="number" step=".1" min="0" data-index="'+i+'" data-field="'+field+'" value="'+escapeHtml(o[field])+'"></label>').join('')+'</div>'+(o.type==='radiator' ? '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:8px"><label style="margin:0">Fenêtre <select data-window-for="'+i+'" style="max-width:150px;padding:7px;border-radius:7px">'+objects.map((win,j)=>win.type==='window'?'<option value="'+j+'">Fenêtre '+(j+1)+'</option>':'').join('')+'</select></label><button type="button" class="secondary" data-center="'+i+'" '+(!objects.some(win=>win.type==='window')?'disabled':'')+'>Centrer sous la fenêtre</button></div>' : '')+'</div>').join('');
     draw();
   }
   panel.querySelector('#ob-add').addEventListener('click',()=>{
     const type=panel.querySelector('#ob-type').value,[y,width,height]=defaults[type];objects.push({id:'ob-'+Date.now()+'-'+objects.length,type,x:0,y,width,height});persist();refresh();
   });
   list.addEventListener('input',e=>{const t=e.target;if(!t.matches('[data-field]'))return;objects[Number(t.dataset.index)][t.dataset.field]=safe(t.value);persist();draw()});
+  list.addEventListener('click',e=>{const button=e.target.closest('[data-center]');if(!button)return;
+    const i=Number(button.dataset.center),radiator=objects[i],selector=list.querySelector('[data-window-for="'+i+'"]');
+    const windowObject=objects[Number(selector?.value)];if(!radiator||!windowObject||windowObject.type!=='window')return;
+    const x=Number(windowObject.x)+(Number(windowObject.width)-Number(radiator.width))/2;
+    if(x<0||x+Number(radiator.width)>dims().w){notes.textContent='Centrage impossible : le radiateur dépasserait les limites du mur.';notes.className='warn';return}
+    radiator.x=Number(x.toFixed(2));persist();refresh();
+  });
   list.addEventListener('click',e=>{const t=e.target.closest('[data-remove]');if(!t)return;objects.splice(Number(t.dataset.remove),1);persist();refresh()});
   document.querySelector('#settings').addEventListener('input',()=>queueMicrotask(draw));
   document.querySelector('#reset').addEventListener('click',()=>queueMicrotask(draw));
