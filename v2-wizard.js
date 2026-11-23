@@ -32,6 +32,8 @@
  geometry.append(compFields);
  document.querySelector('#style-essentials').after(geometry);
  while(controls.firstChild)geometry.append(controls.firstChild);
+ // FormData(#settings) must still include moved controls, even outside the form.
+ [geometry,supply].forEach(root=>root.querySelectorAll('input[name],select[name]').forEach(input=>input.setAttribute('form','settings')));
  advanced.remove();
  // No silent purchasing estimate: require explicit supplier stock length before confirmation.
 
@@ -50,7 +52,7 @@
  const confirmation=document.createElement('p');confirmation.id='bar-confirm-notice';confirmation.className='warn';
  summary.prepend(confirmation);
  const confirm=document.querySelector('#bar-confirm');
- const updateBarStatus=()=>{const confirmed=confirm?.checked&&Number(bar.value)>=30;confirmation.textContent=confirmed?'Longueur des baguettes confirmée : estimation indicative à vérifier avec le plan de coupe.':'⚠ Renseignez et confirmez la longueur réelle des baguettes dans « Réglages et fournitures » avant achat.';const qty=document.querySelector('#result-bars');if(qty&&!confirmed)qty.textContent='À confirmer';};
+ const updateBarStatus=()=>{const confirmed=confirm?.checked&&Number(bar.value)>=30;confirmation.textContent=confirmed?'Longueur des baguettes confirmée : estimation indicative à vérifier avec le plan de coupe.':'⚠ Renseignez et confirmez la longueur réelle des baguettes dans « Fournitures » avant achat.';const qty=document.querySelector('#result-bars');if(qty&&!confirmed)qty.textContent='À confirmer';};
  bar?.addEventListener('input',()=>{confirm.checked=false;updateBarStatus()});
  confirm?.addEventListener('change',updateBarStatus);updateBarStatus();
  const quantityObserver=new MutationObserver(()=>{if(!(confirm?.checked&&Number(bar.value)>=30)&&document.querySelector('#result-bars')?.textContent!=='À confirmer')document.querySelector('#result-bars').textContent='À confirmer'});
@@ -100,11 +102,15 @@
  .refine-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px 16px}
  .refine-grid input{width:90px}
  #proposal-refine input[type=checkbox]{width:auto}
- #proposal-refine .proposal-auto-label{display:flex;justify-content:space-between;flex-direction:row;gap:12px}
+ #proposal-refine .proposal-auto-label{display:flex;justify-content:space-between;flex-direction:row;align-items:center;gap:12px;text-align:left}
+ #proposal-refine .proposal-auto-label input[type=checkbox]{order:2;margin-left:auto;align-self:center}
+ #proposal-refine>label{display:flex;flex-direction:row;align-items:center;justify-content:space-between;gap:12px}
  #proposal-refine .proposal-auto-label input{margin:0;flex:none}
  #proposal-cols:disabled{background:#e4e7e4;color:#707c77;cursor:not-allowed}
  #style-geometry{padding:12px 16px;background:#f5f3ee;border-radius:10px;margin:12px 0}
  #style-geometry h3{margin-top:4px}
+ #composition-fields h3{font-size:1rem}
+ #supply-controls label{display:flex;justify-content:space-between;gap:12px;align-items:center}
  #wizard-result svg{margin-top:12px}
  #composition-dialog{width:min(720px,94vw);max-height:88vh;border:0;border-radius:14px;padding:24px;box-shadow:0 16px 60px #0005;overflow:auto}
  #composition-dialog::backdrop{background:#1c292bb8}
