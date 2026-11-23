@@ -1,0 +1,27 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@500;600&display=swap');
+:root{--bg-app:#FAFAF9;--bg-canvas:#F5F5F4;--bg-panel:#fff;--border-subtle:#E7E5E4;--color-primary:#1B3B2E;--color-accent:#C5A059;--text-main:#1C1917;--text-muted:#57534E;--blueprint-bg:#0A192F;--blueprint-stroke:#64FFDA}
+body{background:var(--bg-app);color:var(--text-main);font-family:Inter,system-ui,sans-serif}
+body>header{background:var(--bg-app)!important;color:var(--text-main)!important;border-bottom:1px solid var(--border-subtle);padding:20px 4vw}
+body>header h1{font:600 30px 'Playfair Display',Georgia,serif;color:var(--text-main)}
+body>header p{color:var(--text-muted)!important}
+body main{max-width:none!important;width:min(1600px,100%);margin:auto;display:grid!important;grid-template-columns:minmax(0,7fr) minmax(330px,3fr)!important;grid-auto-flow:row;align-items:start;gap:0!important;padding:20px 24px!important}
+body main>.am-stage{grid-column:1;grid-row:1 / span 12;position:sticky;top:20px;min-width:0;min-height:min(76vh,730px);background:var(--bg-canvas);border:1px solid var(--border-subtle);border-radius:16px 0 0 16px;padding:28px;display:flex;flex-direction:column;gap:18px}
+.am-eyebrow{font-size:11px;font-weight:700;letter-spacing:.18em;color:#A68148}.am-stage h2{font:600 30px 'Playfair Display',Georgia,serif;margin:7px 0}.am-stage p{color:var(--text-muted);font-size:13px;margin:0}
+.am-canvas{flex:1;min-height:390px;display:flex;align-items:center;justify-content:center;background:#fff;border:1px solid #E7E5E4;border-radius:10px;padding:18px;overflow:hidden}
+.am-canvas #result-svg{width:100%;max-height:68vh;height:auto;touch-action:none;background:#fff}
+body main>.panel,body main>.project-import-card{grid-column:2;min-width:0;max-width:none!important;width:100%;border-radius:0;border-color:var(--border-subtle);box-shadow:none;background:#fff;padding:24px}
+body main>.panel:last-child{border-radius:0 0 16px 0}
+body main>.panel h2{font:600 22px 'Playfair Display',Georgia,serif;color:var(--text-main)}
+body main label{min-width:0;gap:10px;font-size:13px}body main input[type=number],body main select{min-width:0;max-width:48%;width:110px;background:#FAFAF9;border:1px solid #D6D3D1;color:var(--text-main)}
+body main input[type=checkbox]{width:auto}
+body button{background:var(--color-primary);color:#fff}body button.secondary{background:#E7E9E7;color:#29443B}
+body .wizard-nav{max-width:1100px;margin:20px auto 4px;justify-content:center}
+body .wizard-nav button{background:transparent!important;color:#78716C!important;min-width:0;flex:0 1 auto;border:0;border-radius:30px;padding:10px 16px;font-size:13px}
+body .wizard-nav button.active{background:#1B3B2E!important;color:white!important}
+body .wizard-footer{max-width:1600px;padding:0 24px}
+body .stat,#proposal-refine,#style-essentials,#style-geometry{background:#F5F5F4}
+body #supplies-section{background:#F6EFE2;border-color:#E8D7B7}
+body #atelier-preview-controls{max-width:100%;background:#FAFAF9}
+body #wizard-result>svg{display:none}
+body .project-box{background:#FAFAF9;border-color:#E7E5E4}
+@media(max-width:900px){body main{display:flex!important;flex-direction:column!important;padding:12px!important;gap:12px!important}body main>.am-stage{position:relative;top:auto;min-height:420px;width:100%;border-radius:14px;padding:16px}body main>.panel,body main>.project-import-card{width:100%;border-radius:14px;padding:18px}.am-canvas{min-height:300px}body .wizard-nav{flex-wrap:wrap}body .wizard-nav button{flex:1 1 42%}}
