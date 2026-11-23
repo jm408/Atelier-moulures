@@ -7,6 +7,18 @@
  const out=document.createElement('section');out.className='project-box';out.id='project-export';
  out.innerHTML='<h2>Exporter mon projet</h2><p class="hint">Sauvegarde JSON réimportable avec les dimensions, ouvertures, réglages et cadres personnalisés.</p><button type="button" id="project-export-json">Exporter en JSON</button><p id="project-export-status" role="status"></p>';
  summary.append(out);
+ const pngButton=document.createElement('button');pngButton.type='button';pngButton.id='project-export-png';pngButton.className='secondary';pngButton.style.marginLeft='10px';pngButton.textContent='Exporter le plan en PNG';document.getElementById('project-export-json').after(pngButton);
+ pngButton.addEventListener('click',async()=>{
+  const status=document.getElementById('project-export-status');
+  try{
+   const svg=document.getElementById('result-svg');if(!svg||!svg.querySelector('rect'))throw Error('Aucun plan à exporter.');
+   const clone=svg.cloneNode(true);clone.querySelectorAll('[data-frame-handle]').forEach(e=>e.remove());clone.querySelectorAll('[data-panel]').forEach(e=>{e.removeAttribute('tabindex');e.removeAttribute('role');e.removeAttribute('style')});
+   clone.setAttribute('xmlns','http://www.w3.org/2000/svg');const bounds=svg.viewBox.baseVal,width=1800,height=Math.ceil(width*bounds.height/bounds.width);
+   clone.setAttribute('width',width);clone.setAttribute('height',height);
+   const xml=new XMLSerializer().serializeToString(clone),url=URL.createObjectURL(new Blob([xml],{type:'image/svg+xml;charset=utf-8'}));
+   try{const img=new Image();await new Promise((resolve,reject)=>{img.onload=resolve;img.onerror=()=>reject(Error('Image SVG illisible'));img.src=url});const canvas=document.createElement('canvas');canvas.width=width;canvas.height=height;const ctx=canvas.getContext('2d');ctx.fillStyle='#faf9f6';ctx.fillRect(0,0,width,height);ctx.drawImage(img,0,0,width,height);const blob=await new Promise(resolve=>canvas.toBlob(resolve,'image/png'));if(!blob)throw Error('Conversion PNG impossible');const pngUrl=URL.createObjectURL(blob),a=document.createElement('a');a.href=pngUrl;a.download='atelier-moulures-plan.png';document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(pngUrl),1000);status.textContent='Plan PNG exporté.'}finally{URL.revokeObjectURL(url)}
+  }catch(err){status.textContent='Export PNG impossible : '+err.message}
+ });
  const css=document.createElement('style');css.textContent='.project-box{background:#edf2ef;border:1px solid #c1d1c8;border-radius:12px;padding:16px;margin:14px 0}.project-box h3{margin:0 0 10px}.project-file-label{display:flex;flex-wrap:wrap;align-items:center;gap:12px}.project-file-label input{width:min(100%,340px)}';document.head.append(css);
  const readFields=root=>Object.fromEntries([...root.querySelectorAll('input[id],select[id]')].filter(el=>el.id&&!['project-import-file'].includes(el.id)).map(el=>[el.id,el.type==='checkbox'?el.checked:el.value]));
  const getForm=()=>Object.fromEntries([...form.elements].filter(el=>el.name).map(el=>[el.name,el.type==='checkbox'?el.checked:el.value]));
