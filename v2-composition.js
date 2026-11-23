@@ -40,6 +40,49 @@ window.AtelierComposition=(()=>{
    if(segments.length){const best=segments[0];put({...best,y:best.y+Math.min(2,best.h/8),h:best.h-2*Math.min(2,best.h/8)})}
    else warnings.push('Colonne '+(columns.indexOf(c)+1)+' : espace insuffisant autour des ouvertures.');
   }
+  // Adaptive alternative: when rigid columns discard most of the wall, use
+  // obstacle edges as architectural anchors and propose panels in free bays.
+  // Score the alternatives rather than forcing the user to move openings.
+  if(type==='decorative'&&obstacles.length){
+   const adaptive=[];
+   const epsilon=0.01;
+   const left=bounds.x,right=bounds.x+bounds.w,bottom=bounds.y,top=bounds.y+bounds.h;
+   const edges=[left,right,...restricted.flatMap(o=>[Math.max(left,Math.min(right,o.x)),Math.max(left,Math.min(right,o.x+o.w))])];
+   const xs=[...new Set(edges.map(v=>Number(v.toFixed(3))))].sort((a,b)=>a-b);
+   // Generate full-height panels in free vertical bays and shorter panels below/above openings.
+   for(let i=0;i<xs.length-1;i++){
+    const x1=xs[i],x2=xs[i+1];
+    if(x2-x1<minimum+4)continue;
+    const crossing=restricted.filter(o=>o.x<x2-epsilon&&o.x+o.w>x1+epsilon);
+    const yEdges=[bottom,top,...crossing.flatMap(o=>[Math.max(bottom,Math.min(top,o.y)),Math.max(bottom,Math.min(top,o.y+o.h))])];
+    const ys=[...new Set(yEdges.map(v=>Number(v.toFixed(3))))].sort((a,b)=>a-b);
+    const free=[];
+    for(let j=0;j<ys.length-1;j++){
+     const p={x:x1+2,y:ys[j]+2,w:x2-x1-4,h:ys[j+1]-ys[j]-4,kind:'décoratif'};
+     if(p.w>=minimum&&p.h>=minimum&&!restricted.some(o=>overlaps(p,o)))free.push(p);
+    }
+    // Merge adjacent free bands to avoid unnecessary horizontal divisions.
+    let merged=[];
+    for(const p of free){const prev=merged[merged.length-1];if(prev&&Math.abs(prev.y+prev.h+4-p.y)<epsilon){prev.h=p.y+p.h-prev.y}else merged.push({...p})}
+    adaptive.push(...merged);
+   }
+   // Merge horizontally adjacent panels with the same vertical span; the gap is
+   // applied after merging so a broad wall bay becomes one intentional panel.
+   adaptive.sort((a,b)=>a.y-b.y||a.h-b.h||a.x-b.x);
+   const merged=[];
+   for(const p of adaptive){
+    const prev=merged[merged.length-1];
+    if(prev&&Math.abs(prev.y-p.y)<epsilon&&Math.abs(prev.h-p.h)<epsilon&&Math.abs(prev.x+prev.w+4-p.x)<epsilon)prev.w=p.x+p.w-prev.x;
+    else merged.push({...p});
+   }
+   const usable=merged.filter(p=>p.w>=Math.max(minimum,24)&&p.h>=Math.max(minimum,24));
+   const score=arr=>arr.reduce((n,p)=>n+p.w*p.h,0)-arr.length*150;
+   if(usable.length&&score(usable)>score(panels)*1.12){
+    panels.splice(0,panels.length,...usable);
+    warnings.length=0;
+    warnings.push('Composition adaptée automatiquement aux ouvertures.');
+   }
+  }
   if(!panels.length)warnings.push('Aucun cadre compatible avec les contraintes.');
   return {panels,warnings};
  }
