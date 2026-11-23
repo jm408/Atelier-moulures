@@ -85,7 +85,7 @@
 
    const invalidObs=obs.filter(o=>![o.x,o.y,o.width,o.height].every(v=>Number.isFinite(Number(v)))||Number(o.x)<0||Number(o.y)<0||Number(o.x)+Number(o.width)>w||Number(o.y)+Number(o.height)>h||Number(o.width)<=0||Number(o.height)<=0);
    const collisions=panels.filter(p=>blocked.some(o=>overlap(p,o)));
-   panels.forEach((p,i)=>add(svg,'rect',{'data-panel':i,tabindex:0,role:'button','aria-label':'Modifier le cadre '+(i+1),style:'cursor:pointer',x:ox+p.x*s,y:sy(p.y+p.h),width:p.w*s,height:p.h*s,fill:selectedPanelIndex===i?'#c9d9cd':'none','fill-opacity':'.45',stroke:collisions.includes(p)?'#c02929':selectedPanelIndex===i?'#244447':'#9a7d5c','stroke-width':Math.max(1.5,profile*s)*(selectedPanelIndex===i?1.7:1)}));
+   panels.forEach((p,i)=>add(svg,'rect',{'data-panel':i,tabindex:0,role:'button','aria-label':'Modifier le cadre '+(i+1),style:'cursor:pointer;transition:stroke-width .12s,fill .12s',x:ox+p.x*s,y:sy(p.y+p.h),width:p.w*s,height:p.h*s,fill:selectedPanelIndex===i?'#c9d9cd':'none','fill-opacity':'.45',stroke:collisions.includes(p)?'#c02929':selectedPanelIndex===i?'#244447':'#9a7d5c','stroke-width':Math.max(1.5,profile*s)*(selectedPanelIndex===i?1.7:1)}));
    renderPanelEditor(panels,limits,blocked,draftKey);
    obs.forEach((o,i)=>{const x=Number(o.x),y=Number(o.y),ww=Number(o.width),hh=Number(o.height);if(![x,y,ww,hh].every(Number.isFinite))return;
      add(svg,'rect',{'data-obstacle':i,style:'touch-action:none;cursor:grab',x:ox+x*s,y:sy(y+hh),width:ww*s,height:hh*s,fill:o.type==='window'?'#a8cfdd':o.type==='door'?'#ddd1bf':'#c3b8aa','fill-opacity':'.9',stroke:'#52635d','stroke-width':1.5});
@@ -116,7 +116,7 @@
  }
  // Direct frame editing in step 3; changes are kept separately for each proposed layout.
  const panelTools=document.createElement('div');panelTools.id='panel-tools';
- panelTools.innerHTML='<h3>Personnaliser les cadres</h3><p class="hint">Cliquez sur un cadre dans le dessin pour modifier sa position ou ses dimensions au centimètre.</p><div id="panel-edit-fields"></div><div class="buttons"><button type="button" id="panel-add" class="secondary">+ Ajouter un cadre</button><button type="button" id="panel-reset" class="secondary">Restaurer la proposition</button></div><p id="panel-edit-warning" class="warn" role="status"></p>';
+ panelTools.innerHTML='<h3>Personnaliser les cadres</h3><p class="hint">Sélectionnez un cadre en cliquant sur sa surface ou son contour. Les flèches ajustent de 1 cm ; saisissez une décimale pour une précision de 0,1 cm.</p><div id="panel-edit-fields"></div><div class="buttons"><button type="button" id="panel-add" class="secondary">+ Ajouter un cadre</button><button type="button" id="panel-reset" class="secondary">Restaurer la proposition</button></div><p id="panel-edit-warning" class="warn" role="status"></p>';
  $('result-svg').after(panelTools);
  function renderPanelEditor(panels,limits,blocked,key){
    const box=$('panel-edit-fields');box.replaceChildren();
@@ -126,7 +126,7 @@
    const fields=document.createElement('div');fields.className='panel-edit-grid';
    for(const [field,label] of [['x','Position X'],['y','Position Y (depuis le sol)'],['w','Largeur'],['h','Hauteur']]){
      const row=document.createElement('label');row.textContent=label+' (cm)';
-     const input=document.createElement('input');input.type='number';input.step='0.1';input.min=field==='w'||field==='h'?'12':'0';input.value=String(Number(p[field].toFixed(1)));
+     const input=document.createElement('input');input.type='number';input.step='1';input.title='Flèches : 1 cm ; saisie libre au dixième de cm';input.min=field==='w'||field==='h'?'12':'0';input.value=String(Number(p[field].toFixed(1)));
      input.dataset.panelField=field;row.append(input);fields.append(row);
    }
    box.append(fields);
@@ -163,11 +163,14 @@
  panelTools.addEventListener('change',e=>{
    const field=e.target.dataset.panelField;if(!field)return;
    const d=currentDraft();if(!d.panels[selectedPanelIndex])return;
+   const previous=d.panels[selectedPanelIndex][field];
    d.panels[selectedPanelIndex][field]=Number(e.target.value);
    const error=validatePanel(d.panels,d.limits,d.blocked,num('gapX'),num('gapY'));
    $('panel-edit-warning').textContent=error;
-   if(error)return;
+   if(error){e.target.value=String(Number(previous.toFixed(1)));return;}
    panelDrafts.set(d.key,d.panels);calculate();
+   const fieldInput=panelTools.querySelector('[data-panel-field="'+field+'"]');
+   if(fieldInput){fieldInput.focus({preventScroll:true});}
  });
  $('panel-add').onclick=()=>{
    const d=currentDraft(),min=30,step=5;
@@ -182,7 +185,7 @@
    $('panel-edit-warning').textContent='Aucun emplacement libre de 30 × 30 cm. Vous pouvez modifier ou supprimer un cadre existant.';
  };
  $('panel-reset').onclick=()=>{const d=currentDraft();panelDrafts.delete(d.key);selectedPanelIndex=null;$('panel-edit-warning').textContent='';calculate()};
- const editCss=document.createElement('style');editCss.textContent='#panel-tools{margin:18px 0;padding:16px;background:#e8efec;border-radius:10px}#panel-tools h3{margin:0 0 8px}#panel-edit-fields{margin:12px 0}#panel-edit-fields>strong{display:block;margin-bottom:10px}.panel-edit-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px 16px}.panel-edit-grid label{display:flex;gap:8px;align-items:center;justify-content:space-between}.panel-edit-grid input{width:95px}#panel-edit-warning:empty{display:none}@media(max-width:550px){.panel-edit-grid{grid-template-columns:1fr}}';document.head.append(editCss);
+ const editCss=document.createElement('style');editCss.textContent='[data-panel]:hover,[data-panel]:focus-visible{stroke:#244447;stroke-width:5px;fill:#c9d9cd;fill-opacity:.28;outline:none}[data-panel]{pointer-events:all} #panel-tools{margin:18px 0;padding:16px;background:#e8efec;border-radius:10px}#panel-tools h3{margin:0 0 8px}#panel-edit-fields{margin:12px 0}#panel-edit-fields>strong{display:block;margin-bottom:10px}.panel-edit-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px 16px}.panel-edit-grid label{display:flex;gap:8px;align-items:center;justify-content:space-between}.panel-edit-grid input{width:95px}#panel-edit-warning:empty{display:none}@media(max-width:550px){.panel-edit-grid{grid-template-columns:1fr}}';document.head.append(editCss);
  // The V2.1-A editor persists obstacles on input. Observe its editor for edits, additions and removal.
  // Pointer drag: move an obstacle visually, then refine exact X/Y in the form.
  let drag=null;
