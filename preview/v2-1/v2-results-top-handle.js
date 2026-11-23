@@ -41,6 +41,21 @@
  const $=id=>document.getElementById(id), num=name=>Number(form.elements[name].value);
  let selectedProposal=null,lastSignature='',editedPanels=null,selectedPanelIndex=null;
  const panelDrafts=new Map();
+ // Export/import bridge: preserve the exact edited panel geometry, not a regeneration.
+ window.AtelierProjectPanels={
+   export(){return {selectedProposal,panels:(panelDrafts.get(lastSignature+'|'+selectedProposal)||null)?.map(p=>({...p}))||null};},
+   restore(snapshot){
+     calculate();
+     if(snapshot?.selectedProposal){selectedProposal=snapshot.selectedProposal;calculate();}
+     if(Array.isArray(snapshot?.panels)){
+       const clean=snapshot.panels.map(p=>({x:Number(p.x),y:Number(p.y),w:Number(p.w),h:Number(p.h),kind:String(p.kind||'personnalisé')}));
+       if(clean.length>200||clean.some(p=>![p.x,p.y,p.w,p.h].every(Number.isFinite)||p.w<=0||p.h<=0))throw Error('Cadres personnalisés invalides');
+       panelDrafts.set(lastSignature+'|'+selectedProposal,clean);
+     }
+     selectedPanelIndex=null;calculate();
+   }
+ };
+
  const types={door:'Porte',window:'Fenêtre',radiator:'Radiateur'};
  const svgNS='http://www.w3.org/2000/svg';
  const add=(parent,tag,attrs,txt)=>{const e=document.createElementNS(svgNS,tag);Object.entries(attrs).forEach(([k,v])=>e.setAttribute(k,v));if(txt!==undefined)e.textContent=txt;parent.append(e);return e};
