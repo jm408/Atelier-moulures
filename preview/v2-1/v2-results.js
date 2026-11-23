@@ -38,7 +38,8 @@
  controls.insertAdjacentHTML('afterbegin','<div id="regular-controls"><label>Colonnes <input id="regular-cols" type="number" min="1" max="12" value="3"></label><label>Rangées <input id="regular-rows" type="number" min="1" max="5" value="1"></label></div>');
  const syncMode=()=>{const t=section.querySelector('#typology').value,rail=section.querySelector('#dado-rail').checked;section.querySelector('#regular-controls').style.display='none';section.querySelector('#dado-height').closest('label').style.display=t==='base'?'flex':'none';section.querySelector('#upper-percent').closest('label').style.display=t==='mixed'?'flex':'none';section.querySelector('#dado-rail').closest('label').style.display=t==='decorative'?'none':'flex';section.querySelector('#rail-height').closest('label').style.display=t!=='decorative'&&rail&&!section.querySelector('#rail-auto').checked?'flex':'none';section.querySelector('#rail-auto').closest('label').style.display=t!=='decorative'&&rail?'flex':'none';section.querySelector('#rail-profile').closest('label').style.display=t!=='decorative'&&rail?'flex':'none';section.querySelector('#panel-shape').closest('label').style.display=t==='decorative'?'flex':'none'};section.querySelector('#dado-rail').addEventListener('change',syncMode);section.querySelector('#rail-auto').addEventListener('change',syncMode);section.querySelector('#typology').addEventListener('change',syncMode);syncMode();
  const $=id=>document.getElementById(id), num=name=>Number(form.elements[name].value);
- let selectedProposal=null,lastSignature='';
+ let selectedProposal=null,lastSignature='',editedPanels=null,selectedPanelIndex=null;
+ const panelDrafts=new Map();
  const types={door:'Porte',window:'Fenêtre',radiator:'Radiateur'};
  const svgNS='http://www.w3.org/2000/svg';
  const add=(parent,tag,attrs,txt)=>{const e=document.createElementNS(svgNS,tag);Object.entries(attrs).forEach(([k,v])=>e.setAttribute(k,v));if(txt!==undefined)e.textContent=txt;parent.append(e);return e};
@@ -65,24 +66,27 @@
      dado:Number($('dado-height').value),upperPercent:Number($('upper-percent').value),clearance,profile
    });
    const signature=JSON.stringify({manual,desiredCols,limits,obs,type:$('typology').value,shape:$('panel-shape').value,cols:$('typology-cols').value,gap,clearance,profile,dado:$('dado-height').value,upperPercent:$('upper-percent').value,gapY:num('gapY'),rail:$('dado-rail').checked,railHeight:$('rail-height').value});
-   if(signature!==lastSignature){selectedProposal=null;lastSignature=signature}
+   if(signature!==lastSignature){selectedProposal=null;lastSignature=signature;panelDrafts.clear();editedPanels=null;selectedPanelIndex=null}
    const proposals=manual?(result.candidates||[]).filter(p=>p.columns===desiredCols):(result.candidates||[]).filter(p=>p.columns>=2);
    if(!proposals.some(p=>p.id===selectedProposal))selectedProposal=proposals[0]?.id||null;
    const chosen=proposals.find(p=>p.id===selectedProposal);
-   const panels=chosen?.panels||[],warning=result.warnings;
+   const draftKey=signature+'|'+selectedProposal;
+   editedPanels=panelDrafts.has(draftKey)?panelDrafts.get(draftKey):null;
+   const panels=editedPanels||chosen?.panels||[],warning=result.warnings;
    const choices=$('proposal-choices');choices.replaceChildren();
    proposals.slice(0,6).forEach((p,i)=>{
      const button=document.createElement('button');button.type='button';
      button.textContent=(i===0?'Recommandée · ':'')+p.columns+' colonne'+(p.columns>1?'s':'')+' · '+p.panels.length+' cadres';
      button.className=p.id===selectedProposal?'':'secondary';
-     button.onclick=()=>{selectedProposal=p.id;calculate()};
+     button.onclick=()=>{selectedProposal=p.id;selectedPanelIndex=null;calculate()};
      choices.append(button);
    });
    $('proposal-explanation').textContent=chosen?(chosen.explanations.join(' ')+' · Évaluation indicative : '+chosen.score+'/100.'):(manual?'Aucune proposition valide à '+desiredCols+' colonnes. Essayez une autre valeur ou ajustez les contraintes.':'Aucune composition recommandable.');
 
    const invalidObs=obs.filter(o=>![o.x,o.y,o.width,o.height].every(v=>Number.isFinite(Number(v)))||Number(o.x)<0||Number(o.y)<0||Number(o.x)+Number(o.width)>w||Number(o.y)+Number(o.height)>h||Number(o.width)<=0||Number(o.height)<=0);
    const collisions=panels.filter(p=>blocked.some(o=>overlap(p,o)));
-   panels.forEach((p,i)=>add(svg,'rect',{x:ox+p.x*s,y:sy(p.y+p.h),width:p.w*s,height:p.h*s,fill:'none',stroke:collisions.includes(p)?'#c02929':'#9a7d5c','stroke-width':Math.max(1.5,profile*s)}));
+   panels.forEach((p,i)=>add(svg,'rect',{'data-panel':i,tabindex:0,role:'button','aria-label':'Modifier le cadre '+(i+1),style:'cursor:pointer',x:ox+p.x*s,y:sy(p.y+p.h),width:p.w*s,height:p.h*s,fill:selectedPanelIndex===i?'#c9d9cd':'none','fill-opacity':'.45',stroke:collisions.includes(p)?'#c02929':selectedPanelIndex===i?'#244447':'#9a7d5c','stroke-width':Math.max(1.5,profile*s)*(selectedPanelIndex===i?1.7:1)}));
+   renderPanelEditor(panels,limits,blocked,draftKey);
    obs.forEach((o,i)=>{const x=Number(o.x),y=Number(o.y),ww=Number(o.width),hh=Number(o.height);if(![x,y,ww,hh].every(Number.isFinite))return;
      add(svg,'rect',{'data-obstacle':i,style:'touch-action:none;cursor:grab',x:ox+x*s,y:sy(y+hh),width:ww*s,height:hh*s,fill:o.type==='window'?'#a8cfdd':o.type==='door'?'#ddd1bf':'#c3b8aa','fill-opacity':'.9',stroke:'#52635d','stroke-width':1.5});
      add(svg,'text',{'pointer-events':'none',x:ox+(x+ww/2)*s,y:sy(y+hh/2),'text-anchor':'middle','dominant-baseline':'middle','font-size':11,fill:'#273c39'},(types[o.type]||'Obstacle')+' '+(i+1));
@@ -110,6 +114,75 @@
    $('result-notice').textContent=[...warning,...(manual&&!proposals.length?['Aucune composition à '+desiredCols+' colonnes : essayez le mode automatique.']:[]),...(conflicts?[conflicts+' conflit(s) à corriger.']:[]),...(!panels.length?['Aucun panneau possible avec ces dimensions.']:[]),'Proposition décorative indicative : vérifier les dimensions et ajuster avant achat.'].join(' ');
    $('result-notice').className=conflicts||!panels.length?'warn':'hint';
  }
+ // Direct frame editing in step 3; changes are kept separately for each proposed layout.
+ const panelTools=document.createElement('div');panelTools.id='panel-tools';
+ panelTools.innerHTML='<h3>Personnaliser les cadres</h3><p class="hint">Cliquez sur un cadre dans le dessin pour modifier sa position ou ses dimensions au centimètre.</p><div id="panel-edit-fields"></div><div class="buttons"><button type="button" id="panel-add" class="secondary">+ Ajouter un cadre</button><button type="button" id="panel-reset" class="secondary">Restaurer la proposition</button></div><p id="panel-edit-warning" class="warn" role="status"></p>';
+ $('result-svg').after(panelTools);
+ function renderPanelEditor(panels,limits,blocked,key){
+   const box=$('panel-edit-fields');box.replaceChildren();
+   const p=panels[selectedPanelIndex];
+   if(!p){box.textContent='Sélectionnez un cadre dans le plan.';return}
+   const title=document.createElement('strong');title.textContent='Cadre '+(selectedPanelIndex+1);box.append(title);
+   const fields=document.createElement('div');fields.className='panel-edit-grid';
+   for(const [field,label] of [['x','Position X'],['y','Position Y (depuis le sol)'],['w','Largeur'],['h','Hauteur']]){
+     const row=document.createElement('label');row.textContent=label+' (cm)';
+     const input=document.createElement('input');input.type='number';input.step='0.1';input.min=field==='w'||field==='h'?'12':'0';input.value=String(Number(p[field].toFixed(1)));
+     input.dataset.panelField=field;row.append(input);fields.append(row);
+   }
+   box.append(fields);
+   const remove=document.createElement('button');remove.type='button';remove.className='secondary';remove.textContent='Supprimer ce cadre';remove.onclick=()=>{
+     const next=panels.filter((_,i)=>i!==selectedPanelIndex).map(p=>({...p}));
+     panelDrafts.set(key,next);selectedPanelIndex=null;calculate();
+   };box.append(remove);
+ }
+ function validatePanel(next,limits,blocked,gapX,gapY){
+   const min=12;
+   for(const p of next){
+     if(![p.x,p.y,p.w,p.h].every(Number.isFinite)||p.w<min||p.h<min||p.x<limits.x-0.01||p.y<limits.y-0.01||p.x+p.w>limits.x+limits.w+0.01||p.y+p.h>limits.y+limits.h+0.01)return 'Le cadre doit rester dans la zone décorative du mur (minimum 12 cm).';
+     if(blocked.some(o=>overlap(p,o)))return 'Le cadre chevauche une ouverture ou sa zone de dégagement.';
+   }
+   for(let i=0;i<next.length;i++)for(let j=i+1;j<next.length;j++){
+     const a=next[i],b=next[j],dy=Math.min(a.y+a.h,b.y+b.h)-Math.max(a.y,b.y),dx=Math.min(a.x+a.w,b.x+b.w)-Math.max(a.x,b.x);
+     if(overlap(a,b)||(dy>0&&Math.max(a.x,b.x)-Math.min(a.x+a.w,b.x+b.w)<gapX-0.01)||(dx>0&&Math.max(a.y,b.y)-Math.min(a.y+a.h,b.y+b.h)<gapY-0.01))return 'Respectez les espacements entre les cadres.';
+   }
+   return '';
+ }
+ function currentDraft(){
+   const w=num('w'),h=num('h'),base=num('base'),cornice=num('cornice'),side=num('side'),bottom=num('bottom'),top=num('top'),clearance=Number($('clearance').value)||0;
+   const limits={x:side,y:base+bottom,w:w-2*side,h:h-base-bottom-cornice-top};
+   const blocked=readObs().map(o=>({x:Number(o.x)-clearance,y:Number(o.y)-clearance,w:Number(o.width)+2*clearance,h:Number(o.height)+2*clearance}));
+   const chosen=window.AtelierComposition.generate({bounds:limits,obstacles:readObs(),type:$('typology').value,shape:$('panel-shape').value,cols:$('column-mode').value==='manual'?Number($('column-count').value):3,gapX:num('gapX'),gapY:num('gapY'),dado:Number($('dado-height').value),upperPercent:Number($('upper-percent').value),clearance,profile:num('profile')/10}).candidates.find(p=>p.id===selectedProposal);
+   const key=lastSignature+'|'+selectedProposal;
+   return {panels:(panelDrafts.get(key)||chosen?.panels||[]).map(p=>({...p})),limits,blocked,key};
+ }
+ $('result-svg').addEventListener('click',e=>{
+   const t=e.target.closest('[data-panel]');if(!t)return;
+   selectedPanelIndex=Number(t.dataset.panel);calculate();
+ });
+ $('result-svg').addEventListener('keydown',e=>{if((e.key==='Enter'||e.key===' ')&&e.target.matches('[data-panel]')){e.preventDefault();selectedPanelIndex=Number(e.target.dataset.panel);calculate()}});
+ panelTools.addEventListener('change',e=>{
+   const field=e.target.dataset.panelField;if(!field)return;
+   const d=currentDraft();if(!d.panels[selectedPanelIndex])return;
+   d.panels[selectedPanelIndex][field]=Number(e.target.value);
+   const error=validatePanel(d.panels,d.limits,d.blocked,num('gapX'),num('gapY'));
+   $('panel-edit-warning').textContent=error;
+   if(error)return;
+   panelDrafts.set(d.key,d.panels);calculate();
+ });
+ $('panel-add').onclick=()=>{
+   const d=currentDraft(),min=30,step=5;
+   for(let y=d.limits.y;y+min<=d.limits.y+d.limits.h;y+=step){
+     for(let x=d.limits.x;x+min<=d.limits.x+d.limits.w;x+=step){
+       const next=[...d.panels,{x,y,w:min,h:min,kind:'personnalisé'}];
+       if(!validatePanel(next,d.limits,d.blocked,num('gapX'),num('gapY'))){
+         panelDrafts.set(d.key,next);selectedPanelIndex=next.length-1;$('panel-edit-warning').textContent='';calculate();return;
+       }
+     }
+   }
+   $('panel-edit-warning').textContent='Aucun emplacement libre de 30 × 30 cm. Vous pouvez modifier ou supprimer un cadre existant.';
+ };
+ $('panel-reset').onclick=()=>{const d=currentDraft();panelDrafts.delete(d.key);selectedPanelIndex=null;$('panel-edit-warning').textContent='';calculate()};
+ const editCss=document.createElement('style');editCss.textContent='#panel-tools{margin:18px 0;padding:16px;background:#e8efec;border-radius:10px}#panel-tools h3{margin:0 0 8px}#panel-edit-fields{margin:12px 0}#panel-edit-fields>strong{display:block;margin-bottom:10px}.panel-edit-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px 16px}.panel-edit-grid label{display:flex;gap:8px;align-items:center;justify-content:space-between}.panel-edit-grid input{width:95px}#panel-edit-warning:empty{display:none}@media(max-width:550px){.panel-edit-grid{grid-template-columns:1fr}}';document.head.append(editCss);
  // The V2.1-A editor persists obstacles on input. Observe its editor for edits, additions and removal.
  // Pointer drag: move an obstacle visually, then refine exact X/Y in the form.
  let drag=null;
