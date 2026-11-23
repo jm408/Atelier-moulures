@@ -6,8 +6,8 @@
  main.style.display='flex';main.style.flexDirection='column';main.style.maxWidth='850px';
  form.closest('.panel').querySelector('h2').textContent='1. Définir le mur';
  const section=document.createElement('section');section.className='panel';section.innerHTML=`
- <h2>2. Composer les moulures</h2>
- <p class="hint">Les cadres sont proposés dans les surfaces disponibles, sans traverser les portes, fenêtres ou radiateurs. Ajustez les marges et espacements dans « Disposition des cadres » ci-dessus.</p>
+ <h2>2. Composer les moulures</h2><label>Typologie <select id="typology"><option value="decorative">Cadres décoratifs</option><option value="base">Soubassement</option><option value="mixed">Composition mixte</option></select></label><label>Forme <select id="panel-shape"><option value="rectangle">Rectangles</option><option value="square">Carrés</option></select></label><label>Hauteur de soubassement depuis le sol (cm) <input id="dado-height" type="number" min="30" step="5" value="95"></label><label>Nombre de colonnes <input id="typology-cols" type="number" min="1" max="12" value="3"></label>
+ <p class="hint">Les cadres suivent des axes communs et sont adaptés aux ouvertures. Les zones incompatibles restent libres.</p>
  <div id="composition-controls"></div><label>Disposition <select id="layout-mode" style="padding:8px;border-radius:7px"><option value="auto">Adaptée aux obstacles</option><option value="three">3 panneaux symétriques (mur libre)</option></select></label>
  <p class="hint">Aide d’alignement : les panneaux d’une même zone sont répartis à largeur égale et à intervalles réguliers.</p><label>Cadres par zone libre <input id="zone-cols" type="number" min="1" max="8" step="1" value="1"></label>
  <label>Largeur du panneau central (cm) <input id="center-width" type="number" value="125" min="30" step="5"></label>
@@ -23,11 +23,14 @@
  comp.querySelectorAll('input').forEach(input=>input.setAttribute('form','settings'));
  comp.querySelector('h3').textContent='Marges, espacements et baguettes';
  comp.querySelectorAll('label').forEach(label=>{const name=label.querySelector('input')?.name;if(['cols','rows','upper'].includes(name))label.style.display='none'});
+ section.querySelector('#layout-mode').closest('label').style.display='none';
+ section.querySelector('#zone-cols').closest('label').style.display='none';
+ section.querySelector('#center-width').closest('label').style.display='none';
  const modeSelect=section.querySelector('#layout-mode');
  modeSelect.innerHTML='<option value="auto">Automatique — obstacles</option><option value="regular">Régulier — grille</option><option value="three">Personnalisé — 3 panneaux symétriques</option>';
  const controls=section.querySelector('#composition-controls');
  controls.insertAdjacentHTML('afterbegin','<div id="regular-controls"><label>Colonnes <input id="regular-cols" type="number" min="1" max="12" value="3"></label><label>Rangées <input id="regular-rows" type="number" min="1" max="5" value="1"></label></div>');
- const syncMode=()=>{const mode=modeSelect.value;section.querySelector('#regular-controls').style.display=mode==='regular'?'block':'none';section.querySelector('#zone-cols').closest('label').style.display=mode==='auto'?'flex':'none';section.querySelector('#center-width').closest('label').style.display=mode==='three'?'flex':'none'};modeSelect.addEventListener('change',syncMode);syncMode();
+ const syncMode=()=>{section.querySelector('#regular-controls').style.display='none';section.querySelector('#dado-height').closest('label').style.display=section.querySelector('#typology').value==='decorative'?'none':'flex';section.querySelector('#panel-shape').closest('label').style.display=section.querySelector('#typology').value==='decorative'?'flex':'none'};section.querySelector('#typology').addEventListener('change',syncMode);syncMode();
  const $=id=>document.getElementById(id), num=name=>Number(form.elements[name].value);
  const types={door:'Porte',window:'Fenêtre',radiator:'Radiateur'};
  const svgNS='http://www.w3.org/2000/svg';
@@ -48,48 +51,12 @@
    add(svg,'rect',{x:ox,y:sy(base),width:w*s,height:base*s,fill:'#b4a48d'});
    add(svg,'rect',{x:ox,y:oy,width:w*s,height:cornice*s,fill:'#d8cbbb'});
    const blocked=obs.map(o=>({x:Number(o.x)-clearance,y:Number(o.y)-clearance,w:Number(o.width)+2*clearance,h:Number(o.height)+2*clearance}));
-   let panels=[],warning=[];
-   if($('layout-mode').value==='three'){
-     const center=Number($('center-width').value),sideWidth=(limits.w-center-2*gap)/2;
-     if(sideWidth>2*profile&&center>2*profile)panels=[{x:limits.x,y:limits.y,w:sideWidth,h:limits.h},{x:limits.x+sideWidth+gap,y:limits.y,w:center,h:limits.h},{x:limits.x+sideWidth+gap+center+gap,y:limits.y,w:sideWidth,h:limits.h}];
-     else warning.push('Largeurs incompatibles avec trois panneaux.');
-   }else if($('layout-mode').value==='regular'){
-     const cols=Math.max(1,Math.floor(Number($('regular-cols').value)||1)),rows=Math.max(1,Math.floor(Number($('regular-rows').value)||1)),gapY=num('gapY');
-     const pw=(limits.w-(cols-1)*gap)/cols,ph=(limits.h-(rows-1)*gapY)/rows;
-     if(pw>2*profile&&ph>2*profile)for(let r=0;r<rows;r++)for(let c=0;c<cols;c++)panels.push({x:limits.x+c*(pw+gap),y:limits.y+r*(ph+gapY),w:pw,h:ph});
-     else warning.push('Grille trop dense pour les dimensions du mur.');
-   }else{
-     // Partition into horizontal bands at obstacle edges; find free horizontal intervals per band.
-     const ys=[limits.y,limits.y+limits.h,...blocked.flatMap(o=>[Math.max(limits.y,o.y),Math.min(limits.y+limits.h,o.y+o.h)])].filter(y=>y>=limits.y&&y<=limits.y+limits.h).sort((a,b)=>a-b).filter((y,i,a)=>i===0||y-a[i-1]>.01);
-     const bands=[];
-     for(let i=0;i<ys.length-1;i++){
-       const low=ys[i],high=ys[i+1];if(high-low<2*profile+8)continue;
-       const relevant=blocked.filter(o=>o.y<high-.01&&o.y+o.h>low+.01).map(o=>({l:Math.max(limits.x,o.x),r:Math.min(limits.x+limits.w,o.x+o.w)})).filter(o=>o.r>o.l).sort((a,b)=>a.l-b.l);
-       let cursor=limits.x;
-       for(const o of relevant){if(o.l>cursor+2*profile+8)bands.push({x:cursor,y:low,w:o.l-cursor,h:high-low});cursor=Math.max(cursor,o.r)}
-       if(limits.x+limits.w>cursor+2*profile+8)bands.push({x:cursor,y:low,w:limits.x+limits.w-cursor,h:high-low});
-     }
-     // Merge vertically contiguous free rectangles with the same horizontal extent.
-     bands.sort((a,b)=>a.x-b.x||a.w-b.w||a.y-b.y);
-     for(const b of bands){const prev=panels.find(p=>Math.abs(p.x-b.x)<.01&&Math.abs(p.w-b.w)<.01&&Math.abs(p.y+p.h-b.y)<.01);if(prev)prev.h+=b.h;else panels.push({...b})}
-     // Inner inset avoids touching obstacles and preserves room for the profile.
-     panels=panels.map(p=>({x:p.x+2,y:p.y+2,w:p.w-4,h:p.h-4})).filter(p=>p.w>2*profile+8&&p.h>2*profile+8);
-     // Extend tall side panels to the common upper line whenever the path is free.
-     // A panel can originate from any obstacle-defined band, not only the bottom band.
-     const upperEdge=limits.y+limits.h-2;
-     panels.forEach((p,i)=>{
-       const topEdge=p.y+p.h;
-       if(p.h<limits.h*0.28||topEdge>=upperEdge-0.1||upperEdge-topEdge>Math.max(45,limits.h*0.3))return;
-       const candidate={...p,h:upperEdge-p.y};
-       if(!blocked.some(o=>overlap(candidate,o))&&!panels.some((other,j)=>j!==i&&overlap(candidate,other)))p.h=candidate.h;
-     });
-     const cols=Math.max(1,Math.min(8,Math.floor(Number($('zone-cols').value)||1)));
-     panels=panels.flatMap(p=>{
-       const width=(p.w-(cols-1)*gap)/cols;
-       if(width<=2*profile+8)return [p];
-       return Array.from({length:cols},(_,i)=>({x:p.x+i*(width+gap),y:p.y,w:width,h:p.h}));
-     });
-   }
+   const result=window.AtelierComposition.generate({
+     bounds:limits,obstacles:obs,type:$('typology').value,shape:$('panel-shape').value,
+     cols:Number($('typology-cols').value),gapX:gap,gapY:num('gapY'),
+     dado:Number($('dado-height').value),clearance,profile
+   });
+   const panels=result.panels,warning=result.warnings;
    const invalidObs=obs.filter(o=>![o.x,o.y,o.width,o.height].every(v=>Number.isFinite(Number(v)))||Number(o.x)<0||Number(o.y)<0||Number(o.x)+Number(o.width)>w||Number(o.y)+Number(o.height)>h||Number(o.width)<=0||Number(o.height)<=0);
    const collisions=panels.filter(p=>blocked.some(o=>overlap(p,o)));
    panels.forEach((p,i)=>add(svg,'rect',{x:ox+p.x*s,y:sy(p.y+p.h),width:p.w*s,height:p.h*s,fill:'none',stroke:collisions.includes(p)?'#c02929':'#9a7d5c','stroke-width':Math.max(1.5,profile*s)}));
@@ -101,7 +68,7 @@
    $('result-count').textContent=String(panels.length);$('result-meters').textContent=fmt(total)+' m';$('result-bars').textContent=String(Math.ceil(total*(1+loss/100)*100/bar));$('result-conflicts').textContent=String(conflicts);
    const pieces=new Map();for(const p of panels)for(const len of [p.w,p.w,p.h,p.h]){const k=len.toFixed(1);pieces.set(k,(pieces.get(k)||0)+1)}
    $('result-cuts').innerHTML=[...pieces].sort((a,b)=>Number(b[0])-Number(a[0])).map(([length,count])=>'<tr><td>Cadre</td><td>'+count+'</td><td>'+fmt(Number(length))+' cm</td></tr>').join('')||'<tr><td colspan="3">Aucun cadre réalisable</td></tr>';
-   $('result-notice').textContent=[...warning,...(conflicts?[conflicts+' conflit(s) à corriger.']:[]),...(!panels.length?['Aucun panneau possible avec ces dimensions.']:[]),'Proposition automatique indicative : ajuster les cadres avant achat.'].join(' ');
+   $('result-notice').textContent=[...warning,...(conflicts?[conflicts+' conflit(s) à corriger.']:[]),...(!panels.length?['Aucun panneau possible avec ces dimensions.']:[]),'Proposition décorative indicative : vérifier les dimensions et ajuster avant achat.'].join(' ');
    $('result-notice').className=conflicts||warning.length?'warn':'hint';
  }
  // The V2.1-A editor persists obstacles on input. Observe its editor for edits, additions and removal.
