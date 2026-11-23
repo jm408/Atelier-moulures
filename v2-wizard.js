@@ -14,6 +14,26 @@
  const metrics=[...result.children].find(e=>e.tagName==='H3'&&e.textContent.includes('Dimensions'));
  if(metrics){let n=metrics;while(n){const next=n.nextSibling;summary.append(n);n=next}}
  main.append(result,summary);
+ const refine=document.createElement('div');refine.id='proposal-refine';refine.innerHTML=`
+ <div class="refine-header"><strong>Ajuster mon plan</strong><span class="hint">Les changements recalculent la composition.</span></div>
+ <label>Nombre de colonnes <input id="proposal-cols" type="number" min="1" max="8" step="1" value="3"></label>
+ <label><input id="proposal-auto" type="checkbox" checked> Recommandation automatique</label>
+ <div id="proposal-obstacle-fields"></div>
+ `;
+ result.insertBefore(refine,result.querySelector('#proposal-choices'));
+ const auto=refine.querySelector('#proposal-auto'),count=refine.querySelector('#proposal-cols');
+ const mode=document.querySelector('#column-mode'),manualCount=document.querySelector('#column-count');
+ const syncColumn=()=>{mode.value=auto.checked?'auto':'manual';manualCount.value=count.value;mode.dispatchEvent(new Event('change',{bubbles:true}));};
+ auto.addEventListener('change',syncColumn);count.addEventListener('input',()=>{auto.checked=false;syncColumn()});
+ function obstacleEditor(){
+  let obstacles=[];try{obstacles=JSON.parse(localStorage.getItem('atelier-moulures-obstacles-v2')||'{}').obstacles||[]}catch{}
+  refine.querySelector('#proposal-obstacle-fields').innerHTML=obstacles.map((o,i)=>`<fieldset style="border:1px solid #ddd8cd;border-radius:8px;margin:10px 0"><legend>${({door:'Porte',window:'Fenêtre',radiator:'Radiateur'})[o.type]||'Obstacle'} ${i+1}</legend><div class="refine-grid">${[['x','X (cm)'],['y','Y (cm)'],['width','Largeur (cm)'],['height','Hauteur (cm)']].map(([field,label])=>`<label>${label}<input type="number" step=".1" min="0" data-refine-index="${i}" data-refine-field="${field}" value="${Number(o[field])}"></label>`).join('')}</div></fieldset>`).join('');
+ }
+ refine.addEventListener('input',e=>{const t=e.target;if(!t.matches('[data-refine-field]'))return;window.dispatchEvent(new CustomEvent('atelier:obstacle-edit',{detail:{index:Number(t.dataset.refineIndex),field:t.dataset.refineField,value:Number(t.value)}}));document.querySelector('#typology').dispatchEvent(new Event('input',{bubbles:true}));});
+ // Obstacle changes in step 1 and dragging on step 3 stay synchronized.
+ const observer=new MutationObserver(()=>{if(step===2&&document.activeElement?.dataset.refineField===undefined)obstacleEditor()});
+ observer.observe(document.querySelector('#ob-list'),{childList:true,subtree:false});
+
  const nav=document.createElement('nav');nav.className='wizard-nav';nav.setAttribute('aria-label','Étapes du projet');
  nav.innerHTML='<button type="button" data-step="0">1 · Mon mur</button><button type="button" data-step="1">2 · Mon style</button><button type="button" data-step="2">3 · Mes propositions</button><button type="button" data-step="3">4 · Mon plan</button>';
  main.before(nav);
@@ -28,13 +48,18 @@
  #style-essentials{padding:12px 16px;background:#f5f3ee;border-radius:10px;margin:14px 0}
  #style-essentials input[type=checkbox]{width:auto}
  #proposal-choices button{flex:1;min-width:125px}
+ #proposal-refine{padding:14px;background:#f5f3ee;border-radius:10px;margin:14px 0}
+ .refine-header{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap}
+ .refine-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px 16px}
+ .refine-grid input{width:90px}
+ #proposal-refine input[type=checkbox]{width:auto}
  #wizard-result svg{margin-top:12px}
  @media(max-width:600px){.wizard-nav button{min-width:42%;font-size:13px}.wizard-footer{position:sticky;bottom:0;background:#f4f0e9;padding:12px 18px;z-index:5}}
  `;document.head.append(css);
  const steps=[[wall,obstacles],[composition],[result],[summary]];
  let step=0;
  function show(n){
-  step=Math.max(0,Math.min(3,n));
+  step=Math.max(0,Math.min(3,n));if(step===2)obstacleEditor();
   steps.forEach((group,i)=>group.forEach(p=>p.style.display=i===step?'':'none'));
   nav.querySelectorAll('button').forEach((b,i)=>{b.classList.toggle('active',i===step);b.setAttribute('aria-current',i===step?'step':'false')});
   document.querySelector('#wizard-prev').disabled=step===0;
