@@ -17,16 +17,15 @@
  // Single visible column input: legacy advanced input is only an internal compatibility field.
  const duplicate=document.querySelector('#typology-cols')?.closest('label');if(duplicate)duplicate.style.display='none';
  const advanced=document.querySelector('#advanced');
- const dialog=document.createElement('dialog');dialog.id='composition-dialog';
- dialog.innerHTML='<div class="dialog-head"><h2>Fournitures — baguettes et coupes</h2><button type="button" id="dialog-close" class="secondary">Fermer ✕</button></div><p class="hint">Vérifiez notamment la longueur réelle des baguettes avant de préparer vos achats.</p><div id="dialog-controls"></div><div class="dialog-actions"><button type="button" id="dialog-done">Appliquer et fermer</button></div>';
- document.body.append(dialog);
  const controls=document.querySelector('#composition-controls');
  const compFields=document.querySelector('#composition-fields');
  const supply=document.createElement('div');supply.id='supply-controls';
  const bar=document.querySelector('[name="bar"]'),loss=document.querySelector('[name="loss"]'),profile=document.querySelector('[name="profile"]');
  [profile,bar,loss].forEach(input=>{if(input?.closest('label'))supply.append(input.closest('label'))});
- const supplyTitle=document.createElement('h3');supplyTitle.textContent='Fournitures — longueurs et pertes';
- dialog.querySelector('#dialog-controls').append(supplyTitle,supply);
+ const suppliesSection=document.createElement('section');suppliesSection.id='supplies-section';
+ suppliesSection.innerHTML='<h2>Fournitures</h2><p class="hint">Renseignez les caractéristiques réelles de vos baguettes. Elles déterminent les quantités à acheter.</p>';
+ suppliesSection.append(supply);
+ summary.prepend(suppliesSection);
  const geometry=document.createElement('div');geometry.id='style-geometry';
  geometry.innerHTML='<h3>Marges et espacements</h3>';
  geometry.append(compFields);
@@ -41,22 +40,13 @@
  for(const id of ['dado-rail','rail-auto']){const checkbox=document.getElementById(id);const row=checkbox?.closest('label');if(!row)continue;const caption=row.textContent.trim();row.replaceChildren();const span=document.createElement('span');span.textContent=caption;row.append(span,checkbox);row.classList.add('style-checkbox-row');}
  // No silent purchasing estimate: require explicit supplier stock length before confirmation.
 
- const launch=document.createElement('button');launch.type='button';launch.className='secondary';launch.id='open-composition';launch.textContent='📏 Fournitures : renseigner les baguettes';
- summary.prepend(launch);
- const launchResult=launch.cloneNode(true);launchResult.id='open-composition-result';launchResult.textContent='Modifier les fournitures';result.prepend(launchResult);
- function openDialog(){dialog.showModal()}
- function closeDialog(){dialog.close()}
- launch.addEventListener('click',openDialog);launchResult.addEventListener('click',openDialog);
- dialog.querySelector('#dialog-close').addEventListener('click',closeDialog);
- dialog.querySelector('#dialog-done').addEventListener('click',closeDialog);
- dialog.addEventListener('click',e=>{if(e.target===dialog)closeDialog()});
  if(bar){bar.value='';bar.placeholder='À renseigner';bar.required=true;}
  const barRow=bar?.closest('label');
  if(barRow){barRow.insertAdjacentHTML('afterend','<label class="bar-confirm"><input type="checkbox" id="bar-confirm"> J’ai vérifié la longueur réelle de mes baguettes</label>')}
  const confirmation=document.createElement('p');confirmation.id='bar-confirm-notice';confirmation.className='warn';
- summary.prepend(confirmation);
+ suppliesSection.append(confirmation);
  const confirm=document.querySelector('#bar-confirm');
- const updateBarStatus=()=>{const confirmed=confirm?.checked&&Number(bar.value)>=30;confirmation.textContent=confirmed?'Longueur des baguettes confirmée : estimation indicative à vérifier avec le plan de coupe.':'⚠ Renseignez et confirmez la longueur réelle des baguettes dans « Fournitures » avant achat.';const qty=document.querySelector('#result-bars');if(qty&&!confirmed)qty.textContent='À confirmer';};
+ const updateBarStatus=()=>{const confirmed=confirm?.checked&&Number(bar.value)>=30;confirmation.textContent=confirmed?'Longueur des baguettes confirmée : estimation indicative à vérifier avec le plan de coupe.':'⚠ Renseignez et confirmez la longueur réelle des baguettes dans la section Fournitures avant achat.';const qty=document.querySelector('#result-bars');if(qty&&!confirmed)qty.textContent='À confirmer';};
  bar?.addEventListener('input',()=>{confirm.checked=false;updateBarStatus()});
  confirm?.addEventListener('change',updateBarStatus);updateBarStatus();
  const quantityObserver=new MutationObserver(()=>{if(!(confirm?.checked&&Number(bar.value)>=30)&&document.querySelector('#result-bars')?.textContent!=='À confirmer')document.querySelector('#result-bars').textContent='À confirmer'});
@@ -116,11 +106,11 @@
  #composition-fields h3{font-size:1rem}
  #supply-controls label{display:flex;justify-content:space-between;gap:12px;align-items:center}
  #wizard-result svg{margin-top:12px}
- #composition-dialog{width:min(720px,94vw);max-height:88vh;border:0;border-radius:14px;padding:24px;box-shadow:0 16px 60px #0005;overflow:auto}
- #composition-dialog::backdrop{background:#1c292bb8}
- .dialog-head,.dialog-actions{display:flex;align-items:center;justify-content:space-between;gap:12px}
- .dialog-head h2{margin:0}.dialog-actions{margin-top:20px}
- #open-composition,#open-composition-result{margin:14px 0;font-weight:650;outline:2px solid #244447;outline-offset:2px}
+ #supplies-section{padding:20px;background:#e8efec;border:1px solid #b9ccc4;border-radius:12px;margin:0 0 24px}
+ #supplies-section h2{color:#244447;margin:0 0 10px}
+ #supplies-section .hint{color:#526b62}
+ #supplies-section label{color:#253e38}
+ #supplies-section input[type=number]{background:#fff}
  .bar-confirm{background:#fff3dc;padding:12px;border-radius:8px}
  .bar-confirm input{width:auto}
  #bar-confirm-notice{padding:12px;background:#fff3dc;border-radius:8px}
