@@ -23,6 +23,8 @@
  const controls=document.querySelector('#composition-controls');
  dialog.querySelector('#dialog-controls').append(controls);
  advanced.remove();
+ // No silent purchasing estimate: require explicit supplier stock length before confirmation.
+
  const launch=document.createElement('button');launch.type='button';launch.className='secondary';launch.id='open-composition';launch.textContent='⚙ Réglages et fournitures';
  composition.append(launch);
  const launchResult=launch.cloneNode(true);launchResult.id='open-composition-result';result.prepend(launchResult);
@@ -33,14 +35,17 @@
  dialog.querySelector('#dialog-done').addEventListener('click',closeDialog);
  dialog.addEventListener('click',e=>{if(e.target===dialog)closeDialog()});
  const bar=document.querySelector('[name="bar"]');
+ if(bar){bar.value='';bar.placeholder='À renseigner';bar.required=true;}
  const barRow=bar?.closest('label');
  if(barRow){barRow.insertAdjacentHTML('afterend','<label class="bar-confirm"><input type="checkbox" id="bar-confirm"> J’ai vérifié la longueur réelle de mes baguettes</label>')}
  const confirmation=document.createElement('p');confirmation.id='bar-confirm-notice';confirmation.className='warn';
  summary.prepend(confirmation);
  const confirm=document.querySelector('#bar-confirm');
- const updateBarStatus=()=>{const confirmed=confirm?.checked&&Number(bar.value)>0;confirmation.textContent=confirmed?'Longueur des baguettes confirmée : estimation indicative à vérifier avec le plan de coupe.':'⚠ Longueur des baguettes non confirmée : quantité de barres indicative, ne pas utiliser pour l’achat.';};
+ const updateBarStatus=()=>{const confirmed=confirm?.checked&&Number(bar.value)>=30;confirmation.textContent=confirmed?'Longueur des baguettes confirmée : estimation indicative à vérifier avec le plan de coupe.':'⚠ Renseignez et confirmez la longueur réelle des baguettes dans « Réglages et fournitures » avant achat.';const qty=document.querySelector('#result-bars');if(qty&&!confirmed)qty.textContent='À confirmer';};
  bar?.addEventListener('input',()=>{confirm.checked=false;updateBarStatus()});
  confirm?.addEventListener('change',updateBarStatus);updateBarStatus();
+ const quantityObserver=new MutationObserver(()=>{if(!(confirm?.checked&&Number(bar.value)>=30)&&document.querySelector('#result-bars')?.textContent!=='À confirmer')document.querySelector('#result-bars').textContent='À confirmer'});
+ quantityObserver.observe(document.querySelector('#result-bars'),{childList:true});
 
  const refine=document.createElement('div');refine.id='proposal-refine';refine.innerHTML=`
  <div class="refine-header"><strong>Ajuster mon plan</strong><span class="hint">Les changements recalculent la composition.</span></div>
@@ -74,7 +79,10 @@
  .wizard-nav button.active{background:#244447;color:white}
  .wizard-footer{justify-content:space-between;align-items:center;margin-bottom:40px}
  #style-essentials{padding:12px 16px;background:#f5f3ee;border-radius:10px;margin:14px 0}
- #style-essentials input[type=checkbox]{width:auto}
+ #style-essentials input[type=checkbox]{width:auto;margin-left:auto;flex:none;order:2}
+ #style-essentials label:has(input[type=checkbox]){display:flex;flex-direction:row-reverse;justify-content:space-between;gap:12px}
+ #style-essentials label:has(input[type=checkbox]) input{margin:0}
+ #style-essentials label:has(input[type=checkbox]){text-align:left}
  #proposal-choices button{flex:1;min-width:125px}
  #proposal-refine{padding:14px;background:#f5f3ee;border-radius:10px;margin:14px 0}
  .refine-header{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap}
@@ -86,7 +94,7 @@
  #composition-dialog::backdrop{background:#1c292bb8}
  .dialog-head,.dialog-actions{display:flex;align-items:center;justify-content:space-between;gap:12px}
  .dialog-head h2{margin:0}.dialog-actions{margin-top:20px}
- #open-composition,#open-composition-result{margin:14px 0}
+ #open-composition,#open-composition-result{margin:14px 0;font-weight:650;outline:2px solid #244447;outline-offset:2px}
  .bar-confirm{background:#fff3dc;padding:12px;border-radius:8px}
  .bar-confirm input{width:auto}
  #bar-confirm-notice{padding:12px;background:#fff3dc;border-radius:8px}
