@@ -18,7 +18,7 @@
  const duplicate=document.querySelector('#typology-cols')?.closest('label');if(duplicate)duplicate.style.display='none';
  const advanced=document.querySelector('#advanced');
  const dialog=document.createElement('dialog');dialog.id='composition-dialog';
- dialog.innerHTML='<div class="dialog-head"><h2>Réglages de la composition</h2><button type="button" id="dialog-close" class="secondary">Fermer ✕</button></div><p class="hint">Vérifiez notamment la longueur réelle des baguettes avant de préparer vos achats.</p><div id="dialog-controls"></div><div class="dialog-actions"><button type="button" id="dialog-done">Appliquer et fermer</button></div>';
+ dialog.innerHTML='<div class="dialog-head"><h2>Fournitures — baguettes et coupes</h2><button type="button" id="dialog-close" class="secondary">Fermer ✕</button></div><p class="hint">Vérifiez notamment la longueur réelle des baguettes avant de préparer vos achats.</p><div id="dialog-controls"></div><div class="dialog-actions"><button type="button" id="dialog-done">Appliquer et fermer</button></div>';
  document.body.append(dialog);
  const controls=document.querySelector('#composition-controls');
  const compFields=document.querySelector('#composition-fields');
@@ -36,8 +36,8 @@
  // No silent purchasing estimate: require explicit supplier stock length before confirmation.
 
  const launch=document.createElement('button');launch.type='button';launch.className='secondary';launch.id='open-composition';launch.textContent='📏 Fournitures : renseigner les baguettes';
- composition.append(launch);
- const launchResult=launch.cloneNode(true);launchResult.id='open-composition-result';summary.prepend(launchResult);
+ summary.prepend(launch);
+ const launchResult=launch.cloneNode(true);launchResult.id='open-composition-result';launchResult.textContent='Modifier les fournitures';result.prepend(launchResult);
  function openDialog(){dialog.showModal()}
  function closeDialog(){dialog.close()}
  launch.addEventListener('click',openDialog);launchResult.addEventListener('click',openDialog);
@@ -66,7 +66,7 @@
  const auto=refine.querySelector('#proposal-auto'),count=refine.querySelector('#proposal-cols');
  const mode=document.querySelector('#column-mode'),manualCount=document.querySelector('#column-count');
  const syncColumn=()=>{count.disabled=auto.checked;mode.value=auto.checked?'auto':'manual';if(!auto.checked)manualCount.value=count.value;mode.dispatchEvent(new Event('change',{bubbles:true}));};
- const updateAutoColumns=()=>{if(!auto.checked)return;const active=document.querySelector('#proposal-choices button:not(.secondary)');const n=active?.textContent?.match(/(\\d+) colonne/);if(n)count.value=n[1]};
+ const updateAutoColumns=()=>{if(!auto.checked)return;const active=document.querySelector('#proposal-choices button:not(.secondary)');const n=active?.textContent?.match(/(\d+) colonne/);if(n)count.value=n[1]};
  new MutationObserver(updateAutoColumns).observe(document.querySelector('#proposal-choices'),{childList:true,subtree:true,attributes:true,attributeFilter:['class']});
  auto.addEventListener('change',()=>{syncColumn();updateAutoColumns()});count.addEventListener('input',()=>{if(!auto.checked)syncColumn()});
  function obstacleEditor(){
