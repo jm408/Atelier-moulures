@@ -4,11 +4,11 @@
  const oldResult=document.querySelector('#drawing').closest('.panel');
  oldResult.style.display='none';
  main.style.display='flex';main.style.flexDirection='column';main.style.maxWidth='850px';
- obstaclePanel.before(form.closest('.panel').nextElementSibling===obstaclePanel?document.createComment('configuration'):document.createComment('configuration'));
+ form.closest('.panel').querySelector('h2').textContent='1. Définir le mur';
  const section=document.createElement('section');section.className='panel';section.innerHTML=`
  <h2>2. Composer les moulures</h2>
  <p class="hint">Les cadres sont proposés dans les surfaces disponibles, sans traverser les portes, fenêtres ou radiateurs. Ajustez les marges et espacements dans « Disposition des cadres » ci-dessus.</p>
- <label>Disposition <select id="layout-mode" style="padding:8px;border-radius:7px"><option value="auto">Adaptée aux obstacles</option><option value="three">3 panneaux symétriques (mur libre)</option></select></label>
+ <div id="composition-controls"></div><label>Disposition <select id="layout-mode" style="padding:8px;border-radius:7px"><option value="auto">Adaptée aux obstacles</option><option value="three">3 panneaux symétriques (mur libre)</option></select></label>
  <p class="hint">Aide d’alignement : les panneaux d’une même zone sont répartis à largeur égale et à intervalles réguliers.</p><label>Cadres par zone libre <input id="zone-cols" type="number" min="1" max="8" step="1" value="1"></label>
  <label>Largeur du panneau central (cm) <input id="center-width" type="number" value="125" min="30" step="5"></label>
  <label>Dégagement autour des obstacles (cm) <input id="clearance" type="number" value="8" min="0" step="1"></label>
@@ -18,6 +18,15 @@
  <p class="hint">Estimations des seuls cadres affichés. Les plinthes et corniches ne sont pas comprises dans ce métré. La découpe réelle et les dégagements doivent être vérifiés sur place.</p>
  <h3>Liste des coupes des cadres à 45°</h3><table><thead><tr><th>Pièce</th><th>Quantité</th><th>Longueur extérieure</th></tr></thead><tbody id="result-cuts"></tbody></table>`;
  obstaclePanel.after(section);
+ section.querySelector('#composition-controls').append(document.querySelector('#composition-fields'));
+ const comp=document.querySelector('#composition-fields');
+ comp.querySelector('h3').textContent='Marges, espacements et baguettes';
+ comp.querySelectorAll('label').forEach(label=>{const name=label.querySelector('input')?.name;if(['cols','rows','upper'].includes(name))label.style.display='none'});
+ const modeSelect=section.querySelector('#layout-mode');
+ modeSelect.innerHTML='<option value="auto">Automatique — obstacles</option><option value="regular">Régulier — grille</option><option value="three">Personnalisé — 3 panneaux symétriques</option>';
+ const controls=section.querySelector('#composition-controls');
+ controls.insertAdjacentHTML('afterbegin','<div id="regular-controls"><label>Colonnes <input id="regular-cols" type="number" min="1" max="12" value="3"></label><label>Rangées <input id="regular-rows" type="number" min="1" max="5" value="1"></label></div>');
+ const syncMode=()=>{const mode=modeSelect.value;section.querySelector('#regular-controls').style.display=mode==='regular'?'block':'none';section.querySelector('#zone-cols').closest('label').style.display=mode==='auto'?'flex':'none';section.querySelector('#center-width').closest('label').style.display=mode==='three'?'flex':'none'};modeSelect.addEventListener('change',syncMode);syncMode();
  const $=id=>document.getElementById(id), num=name=>Number(form.elements[name].value);
  const types={door:'Porte',window:'Fenêtre',radiator:'Radiateur'};
  const svgNS='http://www.w3.org/2000/svg';
@@ -43,6 +52,11 @@
      const center=Number($('center-width').value),sideWidth=(limits.w-center-2*gap)/2;
      if(sideWidth>2*profile&&center>2*profile)panels=[{x:limits.x,y:limits.y,w:sideWidth,h:limits.h},{x:limits.x+sideWidth+gap,y:limits.y,w:center,h:limits.h},{x:limits.x+sideWidth+gap+center+gap,y:limits.y,w:sideWidth,h:limits.h}];
      else warning.push('Largeurs incompatibles avec trois panneaux.');
+   }else if($('layout-mode').value==='regular'){
+     const cols=Math.max(1,Math.floor(Number($('regular-cols').value)||1)),rows=Math.max(1,Math.floor(Number($('regular-rows').value)||1)),gapY=num('gapY');
+     const pw=(limits.w-(cols-1)*gap)/cols,ph=(limits.h-(rows-1)*gapY)/rows;
+     if(pw>2*profile&&ph>2*profile)for(let r=0;r<rows;r++)for(let c=0;c<cols;c++)panels.push({x:limits.x+c*(pw+gap),y:limits.y+r*(ph+gapY),w:pw,h:ph});
+     else warning.push('Grille trop dense pour les dimensions du mur.');
    }else{
      // Partition into horizontal bands at obstacle edges; find free horizontal intervals per band.
      const ys=[limits.y,limits.y+limits.h,...blocked.flatMap(o=>[Math.max(limits.y,o.y),Math.min(limits.y+limits.h,o.y+o.h)])].filter(y=>y>=limits.y&&y<=limits.y+limits.h).sort((a,b)=>a-b).filter((y,i,a)=>i===0||y-a[i-1]>.01);
