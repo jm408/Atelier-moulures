@@ -66,7 +66,7 @@
    });
    const signature=JSON.stringify({manual,desiredCols,limits,obs,type:$('typology').value,shape:$('panel-shape').value,cols:$('typology-cols').value,gap,clearance,profile,dado:$('dado-height').value,upperPercent:$('upper-percent').value,gapY:num('gapY'),rail:$('dado-rail').checked,railHeight:$('rail-height').value});
    if(signature!==lastSignature){selectedProposal=null;lastSignature=signature}
-   const proposals=manual?(result.candidates||[]).filter(p=>p.columns===desiredCols):(result.candidates||[]);
+   const proposals=manual?(result.candidates||[]).filter(p=>p.columns===desiredCols):(result.candidates||[]).filter(p=>p.columns>=2);
    if(!proposals.some(p=>p.id===selectedProposal))selectedProposal=proposals[0]?.id||null;
    const chosen=proposals.find(p=>p.id===selectedProposal);
    const panels=chosen?.panels||[],warning=result.warnings;
@@ -78,7 +78,7 @@
      button.onclick=()=>{selectedProposal=p.id;calculate()};
      choices.append(button);
    });
-   $('proposal-explanation').textContent=chosen?(chosen.explanations.join(' ')+' · Évaluation indicative : '+chosen.score+'/100.'):'';
+   $('proposal-explanation').textContent=chosen?(chosen.explanations.join(' ')+' · Évaluation indicative : '+chosen.score+'/100.'):(manual?'Aucune proposition valide à '+desiredCols+' colonnes. Essayez une autre valeur ou ajustez les contraintes.':'Aucune composition recommandable.');
 
    const invalidObs=obs.filter(o=>![o.x,o.y,o.width,o.height].every(v=>Number.isFinite(Number(v)))||Number(o.x)<0||Number(o.y)<0||Number(o.x)+Number(o.width)>w||Number(o.y)+Number(o.height)>h||Number(o.width)<=0||Number(o.height)<=0);
    const collisions=panels.filter(p=>blocked.some(o=>overlap(p,o)));
@@ -128,7 +128,8 @@
    const x=drag.x+(e.clientX-drag.startX)/drag.pxPerCm,y=drag.door?0:drag.y-(e.clientY-drag.startY)/drag.pxPerCm;
    o.x=Math.round(Math.max(0,Math.min(num('w')-Number(o.width),x))*10)/10;
    o.y=Math.round(Math.max(0,Math.min(num('h')-Number(o.height),y))*10)/10;
-   localStorage.setItem('atelier-moulures-obstacles-v2',JSON.stringify({schemaVersion:2,obstacles:obs}));
+   window.dispatchEvent(new CustomEvent('atelier:obstacle-edit',{detail:{index:drag.index,field:'x',value:o.x}}));
+   window.dispatchEvent(new CustomEvent('atelier:obstacle-edit',{detail:{index:drag.index,field:'y',value:o.y}}));
    calculate();
    const editor=document.querySelector('#ob-list');
    for(const field of ['x','y']){const input=editor.querySelector('[data-index="'+drag.index+'"][data-field="'+field+'"]');if(input)input.value=o[field]}
