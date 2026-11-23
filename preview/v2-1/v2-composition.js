@@ -77,6 +77,34 @@ window.AtelierComposition=(()=>{
    return result;
   }
   const merged=combine(bays);
+  // Architectural dado candidates: split the wall into horizontal free runs
+  // for each zone, then choose a sensible number of panels in each run.
+  if(type==='base'||type==='mixed'){
+   const selected=[],wide=[];
+   for(const z of safeZones){
+    const xCuts=unique([left,right,...blocked.flatMap(o=>[clamp(o.x,left,right),clamp(o.x+o.w,left,right)])]);
+    const runs=[];
+    for(let i=0;i<xCuts.length-1;i++){
+     const a=xCuts[i],c=xCuts[i+1],p={x:a+2,y:z.y,w:c-a-4,h:z.h,kind:z.kind};
+     if(!valid(p))continue;
+     const previous=runs[runs.length-1];
+     if(previous&&Math.abs(previous[1]-a)<.01)previous[1]=c;
+     else runs.push([a,c]);
+    }
+    for(const [a,c] of runs){
+     const span=c-a-8;
+     const count=Math.max(1,Math.min(5,Math.round(span/95)));
+     const width=(span-(count-1)*gapX)/count;
+     const pieces=Array.from({length:count},(_,i)=>({x:a+4+i*(width+gapX),y:z.y,w:width,h:z.h,kind:z.kind}));
+     if(pieces.every(valid))selected.push(...pieces);
+     const single={x:a+4,y:z.y,w:span,h:z.h,kind:z.kind};
+     if(valid(single))wide.push(single);
+    }
+   }
+   add(selected,'dado-adaptive',type==='base'?'Soubassement adapté aux ouvertures, à hauteur commune.':'Panneaux hauts et bas adaptés aux ouvertures.');
+   add(wide,'dado-wide','Variante avec panneaux plus larges.');
+  }
+
   add(merged,'architectural','Cadres adaptés aux axes des portes et fenêtres.');
   add(bays,'architectural-detail','Cadres indépendants dans les espaces disponibles.');
   // Family C: prefer strong tall panels and a short panel below the window.
