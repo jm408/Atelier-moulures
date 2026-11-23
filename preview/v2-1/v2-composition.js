@@ -118,7 +118,15 @@ window.AtelierComposition=(()=>{
   // Variants represent different column counts, not unrelated algorithms.
   const perColumn=new Map();
   for(const candidate of candidates)if(!perColumn.has(candidate.columns))perColumn.set(candidate.columns,candidate);
-  const distinct=[...perColumn.values()].sort((a,c)=>c.score-a.score);
+  // Avoid alternatives that leave most of the usable wall undecorated.
+  const ranked=[...perColumn.values()].sort((a,c)=>c.score-a.score);
+  const bestCoverage=Math.max(0,...ranked.map(p=>p.panels.reduce((sum,r)=>sum+r.w*r.h,0)));
+  const distinct=ranked.filter(p=>{
+    const covered=p.panels.reduce((sum,r)=>sum+r.w*r.h,0);
+    if(bestCoverage>0&&covered<bestCoverage*.58)return false;
+    if(obstacles.length&&ranked.some(q=>q.panels.length>=4)&&p.panels.length<=2&&covered<bestCoverage*.80)return false;
+    return true;
+  });
   return {candidates:distinct,recommendedCandidateId:distinct[0]?.id||null,warnings:distinct.length?[]:['Aucune composition réalisable avec les contraintes actuelles.']};
  }
  function generate(input){const r=propose(input),c=r.candidates[0];return {panels:c?.panels||[],warnings:r.warnings,candidates:r.candidates,recommendedCandidateId:r.recommendedCandidateId}}
