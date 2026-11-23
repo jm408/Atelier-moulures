@@ -20,6 +20,7 @@
  obstaclePanel.after(section);
  section.querySelector('#composition-controls').append(document.querySelector('#composition-fields'));
  const comp=document.querySelector('#composition-fields');
+ comp.querySelectorAll('input').forEach(input=>input.setAttribute('form','settings'));
  comp.querySelector('h3').textContent='Marges, espacements et baguettes';
  comp.querySelectorAll('label').forEach(label=>{const name=label.querySelector('input')?.name;if(['cols','rows','upper'].includes(name))label.style.display='none'});
  const modeSelect=section.querySelector('#layout-mode');
