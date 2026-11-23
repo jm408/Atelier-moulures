@@ -86,7 +86,7 @@
 
    const invalidObs=obs.filter(o=>![o.x,o.y,o.width,o.height].every(v=>Number.isFinite(Number(v)))||Number(o.x)<0||Number(o.y)<0||Number(o.x)+Number(o.width)>w||Number(o.y)+Number(o.height)>h||Number(o.width)<=0||Number(o.height)<=0);
    const collisions=panels.filter(p=>blocked.some(o=>overlap(p,o)));
-   panels.forEach((p,i)=>add(svg,'rect',{'data-panel':i,tabindex:0,role:'button','aria-label':'Modifier le cadre '+(i+1),style:'cursor:pointer;transition:stroke-width .12s,fill .12s',x:ox+p.x*s,y:sy(p.y+p.h),width:p.w*s,height:p.h*s,fill:selectedPanelIndex===i?'#c9d9cd':'transparent','fill-opacity':selectedPanelIndex===i?'.45':'1',stroke:collisions.includes(p)?'#c02929':selectedPanelIndex===i?'#244447':'#9a7d5c','stroke-width':Math.max(1.5,profile*s)*(selectedPanelIndex===i?1.7:1)}));
+   panels.forEach((p,i)=>add(svg,'rect',{'data-panel':i,tabindex:0,role:'button','aria-label':'Modifier le cadre '+(i+1),style:'cursor:grab;touch-action:none;transition:stroke-width .12s,fill .12s',x:ox+p.x*s,y:sy(p.y+p.h),width:p.w*s,height:p.h*s,fill:selectedPanelIndex===i?'#c9d9cd':'transparent','fill-opacity':selectedPanelIndex===i?'.45':'1',stroke:collisions.includes(p)?'#c02929':selectedPanelIndex===i?'#244447':'#9a7d5c','stroke-width':Math.max(1.5,profile*s)*(selectedPanelIndex===i?1.7:1)}));
    if(selectedPanelIndex!==null&&panels[selectedPanelIndex]){
      const p=panels[selectedPanelIndex];
      add(svg,'circle',{'data-frame-handle':selectedPanelIndex,role:'button','aria-label':'Redimensionner le cadre '+(selectedPanelIndex+1),cx:ox+(p.x+p.w)*s,cy:sy(p.y),r:7,fill:'#244447',stroke:'#fff','stroke-width':2,style:'cursor:nwse-resize;touch-action:none'});
