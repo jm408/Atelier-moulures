@@ -92,7 +92,11 @@
    const choices=$('proposal-choices');choices.replaceChildren();
    proposals.slice(0,6).forEach((p,i)=>{
      const button=document.createElement('button');button.type='button';
-     button.textContent=(i===0?'Recommandée · ':'')+p.columns+' colonne'+(p.columns>1?'s':'')+' · '+p.panels.length+' cadres';
+     const xs=p.panels.map(panel=>({left:Number(panel.x),right:Number(panel.x)+Number(panel.w)}));
+     // Count actual aligned column bands, rather than the generator's requested count.
+     const bands=[];xs.sort((a,b)=>a.left-b.left).forEach(x=>{const match=bands.find(b=>Math.abs(b.left-x.left)<2&&Math.abs(b.right-x.right)<2);if(!match)bands.push(x)});
+     const actualColumns=bands.length;
+     button.textContent=(i===0?'Recommandée · ':'')+actualColumns+' colonne'+(actualColumns>1?'s':'')+' · '+p.panels.length+' cadres';
      button.className=p.id===selectedProposal?'':'secondary';
      button.onclick=()=>{selectedProposal=p.id;selectedPanelIndex=null;calculate()};
      choices.append(button);
