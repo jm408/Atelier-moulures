@@ -15,7 +15,7 @@
  if(metrics){let n=metrics;while(n){const next=n.nextSibling;summary.append(n);n=next}}
  main.append(result,summary);
  // Single visible column input: legacy advanced input is only an internal compatibility field.
- const duplicate=document.querySelector('#typology-cols')?.closest('label');if(duplicate)duplicate.remove();
+ const duplicate=document.querySelector('#typology-cols')?.closest('label');if(duplicate)duplicate.style.display='none';
  const advanced=document.querySelector('#advanced');
  const dialog=document.createElement('dialog');dialog.id='composition-dialog';
  dialog.innerHTML='<div class="dialog-head"><h2>Réglages de la composition</h2><button type="button" id="dialog-close" class="secondary">Fermer ✕</button></div><p class="hint">Vérifiez notamment la longueur réelle des baguettes avant de préparer vos achats.</p><div id="dialog-controls"></div><div class="dialog-actions"><button type="button" id="dialog-done">Appliquer et fermer</button></div>';
