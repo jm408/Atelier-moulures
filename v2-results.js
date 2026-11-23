@@ -84,8 +84,8 @@
    const collisions=panels.filter(p=>blocked.some(o=>overlap(p,o)));
    panels.forEach((p,i)=>add(svg,'rect',{x:ox+p.x*s,y:sy(p.y+p.h),width:p.w*s,height:p.h*s,fill:'none',stroke:collisions.includes(p)?'#c02929':'#9a7d5c','stroke-width':Math.max(1.5,profile*s)}));
    obs.forEach((o,i)=>{const x=Number(o.x),y=Number(o.y),ww=Number(o.width),hh=Number(o.height);if(![x,y,ww,hh].every(Number.isFinite))return;
-     add(svg,'rect',{x:ox+x*s,y:sy(y+hh),width:ww*s,height:hh*s,fill:o.type==='window'?'#a8cfdd':o.type==='door'?'#ddd1bf':'#c3b8aa','fill-opacity':'.9',stroke:'#52635d','stroke-width':1.5});
-     add(svg,'text',{x:ox+(x+ww/2)*s,y:sy(y+hh/2),'text-anchor':'middle','dominant-baseline':'middle','font-size':11,fill:'#273c39'},(types[o.type]||'Obstacle')+' '+(i+1));
+     add(svg,'rect',{'data-obstacle':i,style:'touch-action:none;cursor:grab',x:ox+x*s,y:sy(y+hh),width:ww*s,height:hh*s,fill:o.type==='window'?'#a8cfdd':o.type==='door'?'#ddd1bf':'#c3b8aa','fill-opacity':'.9',stroke:'#52635d','stroke-width':1.5});
+     add(svg,'text',{'pointer-events':'none',x:ox+(x+ww/2)*s,y:sy(y+hh/2),'text-anchor':'middle','dominant-baseline':'middle','font-size':11,fill:'#273c39'},(types[o.type]||'Obstacle')+' '+(i+1));
    });
    const total=panels.reduce((sum,p)=>sum+2*(p.w+p.h),0)/100,conflicts=collisions.length+invalidObs.length;
    $('result-count').textContent=String(panels.length);$('result-meters').textContent=fmt(total)+' m';$('result-bars').textContent=String(Math.ceil(total*(1+loss/100)*100/bar));$('result-conflicts').textContent=String(conflicts);
@@ -95,6 +95,29 @@
    $('result-notice').className=conflicts||warning.length?'warn':'hint';
  }
  // The V2.1-A editor persists obstacles on input. Observe its editor for edits, additions and removal.
+ // Pointer drag: move an obstacle visually, then refine exact X/Y in the form.
+ let drag=null;
+ const resultSvg=$('result-svg');
+ resultSvg.addEventListener('pointerdown',e=>{
+   const target=e.target.closest('[data-obstacle]');if(!target)return;
+   const index=Number(target.getAttribute('data-obstacle')),obs=readObs(),o=obs[index];if(!o)return;
+   const box=resultSvg.getBoundingClientRect(),vb=resultSvg.viewBox.baseVal,wallW=num('w'),wallH=num('h');
+   const scale=Math.min(540/wallW,330/wallH),pxPerCm=scale*box.width/vb.width;
+   drag={index,startX:e.clientX,startY:e.clientY,x:Number(o.x),y:Number(o.y),pxPerCm,door:o.type==='door'};
+   resultSvg.setPointerCapture(e.pointerId);e.preventDefault();
+ });
+ resultSvg.addEventListener('pointermove',e=>{
+   if(!drag)return;
+   const obs=readObs(),o=obs[drag.index];if(!o)return;
+   const x=drag.x+(e.clientX-drag.startX)/drag.pxPerCm,y=drag.door?0:drag.y-(e.clientY-drag.startY)/drag.pxPerCm;
+   o.x=Math.round(Math.max(0,Math.min(num('w')-Number(o.width),x))*10)/10;
+   o.y=Math.round(Math.max(0,Math.min(num('h')-Number(o.height),y))*10)/10;
+   localStorage.setItem('atelier-moulures-obstacles-v2',JSON.stringify({schemaVersion:2,obstacles:obs}));
+   calculate();
+   const editor=document.querySelector('#ob-list');
+   for(const field of ['x','y']){const input=editor.querySelector('[data-index="'+drag.index+'"][data-field="'+field+'"]');if(input)input.value=o[field]}
+ });
+ const stopDrag=()=>{drag=null};resultSvg.addEventListener('pointerup',stopDrag);resultSvg.addEventListener('pointercancel',stopDrag);
  const watch=new MutationObserver(()=>calculate());
  watch.observe(document.querySelector('#ob-list'),{childList:true,subtree:true,attributes:true,attributeFilter:['value']});
  document.querySelector('#ob-list').addEventListener('input',()=>queueMicrotask(calculate));
