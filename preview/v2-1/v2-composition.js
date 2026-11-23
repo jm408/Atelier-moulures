@@ -7,6 +7,7 @@ window.AtelierComposition=(()=>{
  function propose(input){
   const {bounds:b,obstacles=[],type='decorative',shape='rectangle',cols=3,gapX=15,gapY=15,dado=95,upperPercent=70,clearance=8,profile=2}=input;
   const min=Math.max(12,2*profile+8),errors=[];
+  const halfX=Math.max(2,gapX/2),halfY=Math.max(2,gapY/2);
   if(!b||![b.x,b.y,b.w,b.h,gapX,gapY,dado,upperPercent,clearance,profile].every(Number.isFinite)||b.w<=0||b.h<=0||gapX<0||gapY<0||clearance<0)return {candidates:[],recommendedCandidateId:null,warnings:['Dimensions invalides.']};
   const left=b.x,right=b.x+b.w,low=b.y,high=b.y+b.h;
   const blocked=obstacles.map(o=>({x:+o.x-clearance,y:+o.y-clearance,w:+o.width+2*clearance,h:+o.height+2*clearance}));
@@ -20,7 +21,7 @@ window.AtelierComposition=(()=>{
    const clean=panels.map(p=>({...p,x:rnd(p.x),y:rnd(p.y),w:rnd(p.w),h:rnd(p.h)})).filter(valid);
    if(!clean.length)return;
    // Candidate must not contain overlapping frames.
-   if(clean.some((p,i)=>clean.slice(i+1).some(q=>overlap(p,q))))return;
+   if(clean.some((p,i)=>clean.slice(i+1).some(q=>{const sharedY=Math.min(p.y+p.h,q.y+q.h)-Math.max(p.y,q.y);const sharedX=Math.min(p.x+p.w,q.x+q.w)-Math.max(p.x,q.x);return overlap(p,q)||(sharedY>1e-5&&Math.max(p.x,q.x)-Math.min(p.x+p.w,q.x+q.w)<gapX-1e-5)||(sharedX>1e-5&&Math.max(p.y,q.y)-Math.min(p.y+p.h,q.y+q.h)<gapY-1e-5)})))return;
    const key=clean.map(p=>[p.x,p.y,p.w,p.h].join(':')).sort().join('|');if(seen.has(key))return;seen.add(key);
    const area=clean.reduce((s,p)=>s+p.w*p.h,0),coverage=area/(b.w*b.h);
    const xCenters=clean.map(p=>p.x+p.w/2),balance=1-Math.min(1,Math.abs(clean.reduce((s,p)=>s+(p.x+p.w/2-(left+right)/2)*p.w*p.h,0)/(area*b.w/2||1)));
@@ -51,17 +52,17 @@ window.AtelierComposition=(()=>{
   const edges=unique([left,right,...blocked.flatMap(o=>[clamp(o.x,left,right),clamp(o.x+o.w,left,right)])]);
   const bays=[];
   for(let i=0;i<edges.length-1;i++){
-   const x=edges[i]+2,w=edges[i+1]-edges[i]-4;if(w<min)continue;
+   const x=edges[i]+halfX,w=edges[i+1]-edges[i]-2*halfX;if(w<min)continue;
    for(const z of safeZones){
     const cuts=unique([z.y,z.y+z.h,...blocked.filter(o=>o.x<x+w&&o.x+o.w>x).flatMap(o=>[clamp(o.y,z.y,z.y+z.h),clamp(o.y+o.h,z.y,z.y+z.h)])]);
     let free=[];
     for(let j=0;j<cuts.length-1;j++){
-     const p={x,y:cuts[j]+2,w,h:cuts[j+1]-cuts[j]-4,kind:z.kind};
+     const p={x,y:cuts[j]+halfY,w,h:cuts[j+1]-cuts[j]-2*halfY,kind:z.kind};
      if(valid(p))free.push(p);
     }
     // Merge vertically adjacent bands where there is no obstacle.
     const merged=[];
-    for(const p of free){const prev=merged[merged.length-1];if(prev&&Math.abs(prev.y+prev.h+4-p.y)<.1){const candidate={...prev,h:p.y+p.h-prev.y};if(valid(candidate)){prev.h=candidate.h;continue}}merged.push({...p})}
+    for(const p of free){const prev=merged[merged.length-1];if(prev&&Math.abs(prev.y+prev.h+2*halfY-p.y)<.1){const candidate={...prev,h:p.y+p.h-prev.y};if(valid(candidate)){prev.h=candidate.h;continue}}merged.push({...p})}
     bays.push(...merged);
    }
   }
@@ -73,7 +74,7 @@ window.AtelierComposition=(()=>{
     const a=result[i],c=result[j];
     if(Math.abs(a.y-c.y)>.1||Math.abs(a.h-c.h)>.1)continue;
     const l=Math.min(a.x,c.x),r=Math.max(a.x+a.w,c.x+c.w);
-    if(r-l>a.w+c.w+10)continue;
+    if(r-l>a.w+c.w+Math.max(10,gapX))continue;
     const p={...a,x:l,w:r-l};if(valid(p)){result.splice(j,1);result[i]=p;changed=true;break outer}
    }}
    return result;
@@ -87,19 +88,19 @@ window.AtelierComposition=(()=>{
     const xCuts=unique([left,right,...blocked.flatMap(o=>[clamp(o.x,left,right),clamp(o.x+o.w,left,right)])]);
     const runs=[];
     for(let i=0;i<xCuts.length-1;i++){
-     const a=xCuts[i],c=xCuts[i+1],p={x:a+2,y:z.y,w:c-a-4,h:z.h,kind:z.kind};
+     const a=xCuts[i],c=xCuts[i+1],p={x:a+halfX,y:z.y,w:c-a-2*halfX,h:z.h,kind:z.kind};
      if(!valid(p))continue;
      const previous=runs[runs.length-1];
      if(previous&&Math.abs(previous[1]-a)<.01)previous[1]=c;
      else runs.push([a,c]);
     }
     for(const [a,c] of runs){
-     const span=c-a-8;
+     const span=c-a-2*halfX;
      const count=Math.max(1,Math.min(5,Math.round(span/95)));
      const width=(span-(count-1)*gapX)/count;
-     const pieces=Array.from({length:count},(_,i)=>({x:a+4+i*(width+gapX),y:z.y,w:width,h:z.h,kind:z.kind}));
+     const pieces=Array.from({length:count},(_,i)=>({x:a+halfX+i*(width+gapX),y:z.y,w:width,h:z.h,kind:z.kind}));
      if(pieces.every(valid))selected.push(...pieces);
-     const single={x:a+4,y:z.y,w:span,h:z.h,kind:z.kind};
+     const single={x:a+halfX,y:z.y,w:span,h:z.h,kind:z.kind};
      if(valid(single))wide.push(single);
     }
    }
@@ -132,7 +133,7 @@ window.AtelierComposition=(()=>{
   // seven frames are shown. Do not offer those as separate column options.
   const meaningful=[];
   for(const p of distinct){
-   if(meaningful.some(q=>q.panels.length===p.panels.length))continue;
+   if(meaningful.some(q=>q.panels.length===p.panels.length && q.columns===p.columns))continue;
    meaningful.push(p);
   }
   return {candidates:meaningful,recommendedCandidateId:meaningful[0]?.id||null,warnings:meaningful.length?[]:['Aucune composition réalisable avec les contraintes actuelles.']};
