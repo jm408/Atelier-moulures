@@ -89,7 +89,7 @@
    panels.forEach((p,i)=>add(svg,'rect',{'data-panel':i,tabindex:0,role:'button','aria-label':'Modifier le cadre '+(i+1),style:'cursor:grab;touch-action:none;transition:stroke-width .12s,fill .12s',x:ox+p.x*s,y:sy(p.y+p.h),width:p.w*s,height:p.h*s,fill:selectedPanelIndex===i?'#c9d9cd':'transparent','fill-opacity':selectedPanelIndex===i?'.45':'1',stroke:collisions.includes(p)?'#c02929':selectedPanelIndex===i?'#244447':'#9a7d5c','stroke-width':Math.max(1.5,profile*s)*(selectedPanelIndex===i?1.7:1)}));
    if(selectedPanelIndex!==null&&panels[selectedPanelIndex]){
      const p=panels[selectedPanelIndex];
-     add(svg,'circle',{'data-frame-handle':selectedPanelIndex,role:'button','aria-label':'Redimensionner le cadre '+(selectedPanelIndex+1),cx:ox+(p.x+p.w)*s,cy:sy(p.y),r:7,fill:'#244447',stroke:'#fff','stroke-width':2,style:'cursor:nwse-resize;touch-action:none'});
+     add(svg,'circle',{'data-frame-handle':selectedPanelIndex,role:'button','aria-label':'Redimensionner le cadre '+(selectedPanelIndex+1),cx:ox+(p.x+p.w)*s,cy:sy(p.y+p.h),r:7,fill:'#244447',stroke:'#fff','stroke-width':2,style:'cursor:nwse-resize;touch-action:none'});
    }
    renderPanelEditor(panels,limits,blocked,draftKey);
    obs.forEach((o,i)=>{const x=Number(o.x),y=Number(o.y),ww=Number(o.width),hh=Number(o.height);if(![x,y,ww,hh].every(Number.isFinite))return;
@@ -121,7 +121,7 @@
  }
  // Direct frame editing in step 3; changes are kept separately for each proposed layout.
  const panelTools=document.createElement('div');panelTools.id='panel-tools';
- panelTools.innerHTML='<h3>Personnaliser les cadres</h3><p class="hint">Cliquez sur un cadre et faites-le glisser pour le déplacer. Tirez la poignée ronde en bas à droite pour le redimensionner. Les champs permettent un ajustement précis au centimètre.</p><div id="panel-edit-fields"></div><div class="buttons"><button type="button" id="panel-add" class="secondary">+ Ajouter un cadre</button><button type="button" id="panel-reset" class="secondary">Restaurer la proposition</button></div><p id="panel-edit-warning" class="warn" role="status"></p>';
+ panelTools.innerHTML='<h3>Personnaliser les cadres</h3><p class="hint">Cliquez sur un cadre et faites-le glisser pour le déplacer. Tirez la poignée ronde en haut à droite pour le redimensionner. Les champs permettent un ajustement précis au centimètre.</p><div id="panel-edit-fields"></div><div class="buttons"><button type="button" id="panel-add" class="secondary">+ Ajouter un cadre</button><button type="button" id="panel-reset" class="secondary">Restaurer la proposition</button></div><p id="panel-edit-warning" class="warn" role="status"></p>';
  $('result-svg').after(panelTools);
  function renderPanelEditor(panels,limits,blocked,key){
    const box=$('panel-edit-fields');box.replaceChildren();
