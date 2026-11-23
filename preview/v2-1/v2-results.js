@@ -74,16 +74,14 @@
      for(const b of bands){const prev=panels.find(p=>Math.abs(p.x-b.x)<.01&&Math.abs(p.w-b.w)<.01&&Math.abs(p.y+p.h-b.y)<.01);if(prev)prev.h+=b.h;else panels.push({...b})}
      // Inner inset avoids touching obstacles and preserves room for the profile.
      panels=panels.map(p=>({x:p.x+2,y:p.y+2,w:p.w-4,h:p.h-4})).filter(p=>p.w>2*profile+8&&p.h>2*profile+8);
-     // Harmonize the upper edges of tall lateral panels when the extension is free.
-     // Never move an opening, cross its clearance, or overlap another panel.
+     // Extend tall side panels to the common upper line whenever the path is free.
+     // A panel can originate from any obstacle-defined band, not only the bottom band.
      const upperEdge=limits.y+limits.h-2;
-     const lowerEdge=limits.y+2;
      panels.forEach((p,i)=>{
-       if(Math.abs(p.y-lowerEdge)>0.1||p.h<limits.h*0.28||p.y+p.h>=upperEdge-0.1)return;
+       const topEdge=p.y+p.h;
+       if(p.h<limits.h*0.28||topEdge>=upperEdge-0.1||upperEdge-topEdge>Math.max(45,limits.h*0.3))return;
        const candidate={...p,h:upperEdge-p.y};
-       const freeOfObstacles=!blocked.some(o=>overlap(candidate,o));
-       const freeOfPanels=!panels.some((other,j)=>j!==i&&overlap(candidate,other));
-       if(freeOfObstacles&&freeOfPanels)p.h=candidate.h;
+       if(!blocked.some(o=>overlap(candidate,o))&&!panels.some((other,j)=>j!==i&&overlap(candidate,other)))p.h=candidate.h;
      });
      const cols=Math.max(1,Math.min(8,Math.floor(Number($('zone-cols').value)||1)));
      panels=panels.flatMap(p=>{
