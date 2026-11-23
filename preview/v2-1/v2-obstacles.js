@@ -39,6 +39,12 @@
     const type=panel.querySelector('#ob-type').value,[y,width,height]=defaults[type];objects.push({id:'ob-'+Date.now()+'-'+objects.length,type,x:0,y,width,height});persist();refresh();
   });
   list.addEventListener('input',e=>{const t=e.target;if(!t.matches('[data-field]'))return;objects[Number(t.dataset.index)][t.dataset.field]=safe(t.value);persist();draw()});
+  window.addEventListener('atelier:obstacles-import',e=>{
+    const incoming=e.detail?.obstacles;
+    if(!Array.isArray(incoming)||incoming.length>100||incoming.some(o=>!types[o.type]||!['x','y','width','height'].every(k=>Number.isFinite(Number(o[k])))||Number(o.width)<=0||Number(o.height)<=0))return;
+    objects=incoming.map((o,i)=>({id:String(o.id||'import-'+i),type:o.type,x:Number(o.x),y:Number(o.y),width:Number(o.width),height:Number(o.height)}));
+    persist();refresh();
+  });
   // Changes made in the proposal step are persisted by the obstacle editor itself.
   window.addEventListener('atelier:obstacle-edit',e=>{const {index,field,value}=e.detail||{};if(!objects[index]||!['x','y','width','height'].includes(field))return;objects[index][field]=safe(value);persist();refresh();});
   list.addEventListener('click',e=>{const button=e.target.closest('[data-center]');if(!button)return;
