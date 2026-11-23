@@ -13,6 +13,7 @@
  <label>Largeur du panneau central (cm) <input id="center-width" type="number" value="125" min="30" step="5"></label>
  <label>Dégagement autour des obstacles (cm) <input id="clearance" type="number" value="8" min="0" step="1"></label>
  </details><h2 style="margin-top:24px">3. Proposition recommandée</h2><div id="proposal-choices" class="buttons"></div><p id="proposal-explanation" class="hint"></p><p id="result-notice" class="hint" role="status"></p>
+ <p id="obstacle-drag-hint" role="note" style="display:block!important;background:#e5eeeb;color:#244447;padding:14px 16px;border-left:4px solid #244447;border-radius:6px;line-height:1.5;margin:14px 0"><strong>Déplacer les ouvertures et obstacles :</strong> cliquez ou touchez une porte, une fenêtre ou un radiateur sur le dessin, puis faites glisser l’élément pour ajuster sa position. Les coordonnées peuvent aussi être saisies précisément ci-dessus.</p>
  <svg id="result-svg" viewBox="0 0 600 380" role="img" aria-label="Résultat : mur, ouvertures et panneaux calculés"></svg>
  <h3>Dimensions et quantités du résultat</h3><div class="stats"><div class="stat">Panneaux<strong id="result-count">—</strong></div><div class="stat">Baguettes théoriques<strong id="result-meters">—</strong></div><div class="stat">Barres estimées<strong id="result-bars">—</strong></div><div class="stat">Conflits<strong id="result-conflicts">—</strong></div><div class="stat">Cimaise<strong id="result-rail-meters">—</strong></div></div>
  <p class="hint">Estimations des seuls cadres affichés. Les plinthes et corniches ne sont pas comprises dans ce métré. La découpe réelle et les dégagements doivent être vérifiés sur place.</p>
@@ -117,8 +118,6 @@
  // Direct frame editing in step 3; changes are kept separately for each proposed layout.
  const panelTools=document.createElement('div');panelTools.id='panel-tools';
  panelTools.innerHTML='<h3>Personnaliser les cadres</h3><p class="hint">Sélectionnez un cadre en cliquant sur sa surface ou son contour. Les flèches ajustent de 1 cm ; saisissez une décimale pour une précision de 0,1 cm.</p><div id="panel-edit-fields"></div><div class="buttons"><button type="button" id="panel-add" class="secondary">+ Ajouter un cadre</button><button type="button" id="panel-reset" class="secondary">Restaurer la proposition</button></div><p id="panel-edit-warning" class="warn" role="status"></p>';
- const obstacleHint=document.createElement('p');obstacleHint.className='hint';obstacleHint.id='obstacle-drag-hint';obstacleHint.textContent='Astuce : cliquez et faites glisser une porte, une fenêtre ou un radiateur directement sur le dessin pour le déplacer. Sur mobile, maintenez le doigt sur l’élément et faites-le glisser. Les coordonnées restent modifiables dans les champs.';
- $('result-svg').before(obstacleHint);
  $('result-svg').after(panelTools);
  function renderPanelEditor(panels,limits,blocked,key){
    const box=$('panel-edit-fields');box.replaceChildren();
