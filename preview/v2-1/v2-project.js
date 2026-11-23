@@ -3,7 +3,7 @@
  const form=document.querySelector('#settings'), wall=form.closest('.panel'),summary=document.querySelector('#wizard-summary');
  const ui=document.createElement('section');ui.id='project-import';ui.className='project-box';
  ui.innerHTML='<h3>Reprendre un projet</h3><p class="hint">Importez un fichier Atelier Moulures (.json) pour retrouver votre mur, ses ouvertures et vos cadres personnalisés.</p><label class="project-file-label">Importer un projet JSON <input id="project-import-file" type="file" accept=".json,application/json"></label><p id="project-import-status" role="status"></p>';
- wall.prepend(ui);
+ wall.before(ui);
  const out=document.createElement('section');out.className='project-box';out.id='project-export';
  out.innerHTML='<h2>Exporter mon projet</h2><p class="hint">Sauvegarde JSON réimportable avec les dimensions, ouvertures, réglages et cadres personnalisés.</p><button type="button" id="project-export-json">Exporter en JSON</button><p id="project-export-status" role="status"></p>';
  summary.append(out);
@@ -19,12 +19,7 @@
    try{const img=new Image();await new Promise((resolve,reject)=>{img.onload=resolve;img.onerror=()=>reject(Error('Image SVG illisible'));img.src=url});const canvas=document.createElement('canvas');canvas.width=width;canvas.height=height;const ctx=canvas.getContext('2d');ctx.fillStyle='#faf9f6';ctx.fillRect(0,0,width,height);ctx.drawImage(img,0,0,width,height);const blob=await new Promise(resolve=>canvas.toBlob(resolve,'image/png'));if(!blob)throw Error('Conversion PNG impossible');const pngUrl=URL.createObjectURL(blob),a=document.createElement('a');a.href=pngUrl;a.download='atelier-moulures-plan.png';document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(pngUrl),1000);status.textContent='Plan PNG exporté.'}finally{URL.revokeObjectURL(url)}
   }catch(err){status.textContent='Export PNG impossible : '+err.message}
  });
- const toolbar=document.createElement('div');toolbar.className='project-toolbar';toolbar.innerHTML='<button type="button" class="secondary" id="project-quick-import">↑ Importer JSON</button><button type="button" class="secondary" id="project-quick-json">↓ Exporter JSON</button><button type="button" class="secondary" id="project-quick-png">↓ Exporter PNG</button>';
- document.querySelector('.wizard-nav')?.after(toolbar);
- document.getElementById('project-quick-import').onclick=()=>document.getElementById('project-import-file').click();
- document.getElementById('project-quick-json').onclick=()=>document.getElementById('project-export-json').click();
- document.getElementById('project-quick-png').onclick=()=>document.getElementById('project-export-png').click();
- const css=document.createElement('style');css.textContent='.project-toolbar{max-width:850px;margin:0 auto 12px;padding:0 18px;display:flex;flex-wrap:wrap;gap:8px}.project-toolbar button{flex:1;min-width:135px}.project-box{background:#edf2ef;border:1px solid #c1d1c8;border-radius:12px;padding:16px;margin:14px 0}.project-box h3{margin:0 0 10px}.project-file-label{display:flex;flex-wrap:wrap;align-items:center;gap:12px}.project-file-label input{width:min(100%,340px)}';document.head.append(css);
+ const css=document.createElement('style');css.textContent='.project-box{background:#edf2ef;border:1px solid #c1d1c8;border-radius:12px;padding:16px;margin:14px 0}.project-box h3{margin:0 0 10px}.project-file-label{display:flex;flex-wrap:wrap;align-items:center;gap:12px}.project-file-label input{width:min(100%,340px)}';document.head.append(css);\n ui.style.display='';\n const setImportVisibility=()=>{ui.style.display=document.querySelector('.wizard-nav [data-step="0"]')?.classList.contains('active')?'':'none'};\n document.querySelector('.wizard-nav')?.addEventListener('click',()=>setTimeout(setImportVisibility,0));\n document.getElementById('wizard-prev')?.addEventListener('click',()=>setTimeout(setImportVisibility,0));\n document.getElementById('wizard-next')?.addEventListener('click',()=>setTimeout(setImportVisibility,0));\n setImportVisibility();
  const readFields=root=>Object.fromEntries([...root.querySelectorAll('input[id],select[id]')].filter(el=>el.id&&!['project-import-file'].includes(el.id)).map(el=>[el.id,el.type==='checkbox'?el.checked:el.value]));
  const getForm=()=>Object.fromEntries([...form.elements].filter(el=>el.name).map(el=>[el.name,el.type==='checkbox'?el.checked:el.value]));
  const styleIds=['typology','panel-shape','dado-height','typology-cols','column-mode','column-count','dado-rail','rail-auto','rail-height','upper-percent','clearance','proposal-auto','proposal-cols'];
@@ -55,11 +50,11 @@
    for(const [k,v] of Object.entries(d.wall)){const el=form.elements.namedItem(k);if(el)el.type==='checkbox'?el.checked=Boolean(v):el.value=String(v)}
    for(const [k,v] of Object.entries(d.style)){const el=document.getElementById(k);if(el&&['INPUT','SELECT'].includes(el.tagName))el.type==='checkbox'?el.checked=Boolean(v):el.value=String(v)}
    localStorage.setItem('atelier-moulures',JSON.stringify(d.wall));
-   window.dispatchEvent(new CustomEvent('atelier:obstacles-import',{detail:{obstacles:d.obstacles}}));
+   localStorage.setItem('atelier-moulures-obstacles-v2',JSON.stringify({schemaVersion:2,obstacles:d.obstacles}));\n   window.dispatchEvent(new CustomEvent('atelier:obstacles-import',{detail:{obstacles:d.obstacles}}));
    form.dispatchEvent(new Event('input',{bubbles:true}));
    document.getElementById('typology').dispatchEvent(new Event('change',{bubbles:true}));
    window.AtelierProjectPanels?.restore(d.composition);
-   status.textContent='Projet importé. Vérifiez les dimensions avant validation et export.';
+   const stored=JSON.parse(localStorage.getItem('atelier-moulures-obstacles-v2')||'{}').obstacles||[];\n   if(stored.length!==d.obstacles.length)throw Error('Les ouvertures et obstacles n’ont pas été restaurés correctement.');\n   status.textContent='Projet importé : '+stored.length+' ouverture(s) ou obstacle(s) restauré(s). Vérifiez le plan avant validation.';
   }catch(err){status.textContent='Import impossible : '+err.message}
   finally{e.target.value=''}
  });
