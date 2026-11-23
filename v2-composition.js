@@ -32,7 +32,7 @@ window.AtelierComposition=(()=>{
    const columnCount=unique(clean.map(p=>p.x+p.w/2)).length;
    const rhythm=1-Math.min(1,Math.abs(columnCount-(Number(cols)||3))/Math.max(3,Number(cols)||3));
    const scoreBreakdown={alignment:rnd(alignment),balance:rnd(balance),proportions:rnd(proportions),rhythm:rnd(rhythm),simplicity:rnd(simplicity)};
-   const score=rnd(100*(.30*alignment+.25*balance+.20*proportions+.15*rhythm+.10*simplicity)+Math.min(12,coverage*16));
+   const score=rnd(Math.min(100,100*(.30*alignment+.25*balance+.20*proportions+.15*rhythm+.10*simplicity)+Math.min(12,coverage*16)));
    candidates.push({id:'proposal-'+(candidates.length+1),panels:clean,columns:columnCount,score,scoreBreakdown,explanations:[reason],warnings:[],metrics:{count:clean.length,meters:rnd(clean.reduce((s,p)=>s+2*(p.w+p.h),0)/100)},method});
   };
   // Family A: balanced regular rhythms, vary the number of columns.
