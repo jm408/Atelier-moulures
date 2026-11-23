@@ -92,10 +92,12 @@
    const choices=$('proposal-choices');choices.replaceChildren();
    proposals.slice(0,6).forEach((p,i)=>{
      const button=document.createElement('button');button.type='button';
-     const xs=p.panels.map(panel=>({left:Number(panel.x),right:Number(panel.x)+Number(panel.w)}));
-     // Count actual aligned column bands, rather than the generator's requested count.
-     const bands=[];xs.sort((a,b)=>a.left-b.left).forEach(x=>{const match=bands.find(b=>Math.abs(b.left-x.left)<2&&Math.abs(b.right-x.right)<2);if(!match)bands.push(x)});
-     const actualColumns=bands.length;
+     // Count panels sharing a horizontal row (max number crossed by a level).
+     const levels=[...new Set(p.panels.flatMap(panel=>[Number(panel.y),Number(panel.y)+Number(panel.h)]))].sort((a,b)=>a-b);
+     const actualColumns=Math.max(0,...levels.slice(1).map((v,j)=>{
+       const mid=(levels[j]+v)/2;
+       return p.panels.filter(panel=>Number(panel.y)<mid&&Number(panel.y)+Number(panel.h)>mid).length;
+     }));
      button.textContent=(i===0?'Recommandée · ':'')+actualColumns+' colonne'+(actualColumns>1?'s':'')+' · '+p.panels.length+' cadres';
      button.className=p.id===selectedProposal?'':'secondary';
      button.onclick=()=>{selectedProposal=p.id;selectedPanelIndex=null;calculate()};
