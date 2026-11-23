@@ -11,8 +11,6 @@
  const outputNodes=[];let node=heading;
  while(node){const next=node.nextSibling;outputNodes.push(node);node=next}
  for(const n of outputNodes)result.append(n);
- const dragNotice=document.createElement('p');dragNotice.id='wizard-drag-instruction';dragNotice.setAttribute('role','note');dragNotice.style.cssText='background:#e5eeeb;color:#244447;padding:12px 15px;border-left:4px solid #244447;border-radius:6px;line-height:1.5;margin:12px 0';dragNotice.innerHTML='<strong>Déplacer les ouvertures et obstacles :</strong> cliquez ou touchez une porte, une fenêtre ou un radiateur sur le plan, puis faites glisser l’élément pour affiner sa position. Vous pouvez également saisir ses coordonnées au centimètre près.';
- const drawing=result.querySelector('#result-svg');if(drawing)drawing.before(dragNotice);
  const metrics=[...result.children].find(e=>e.tagName==='H3'&&e.textContent.includes('Dimensions'));
  if(metrics){let n=metrics;while(n){const next=n.nextSibling;summary.append(n);n=next}}
  main.append(result,summary);
