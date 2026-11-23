@@ -5,14 +5,15 @@ window.AtelierComposition=(()=>{
  const unique=a=>[...new Set(a.filter(Number.isFinite).map(n=>+n.toFixed(2)))].sort((a,b)=>a-b);
  const rnd=n=>+n.toFixed(2);
  function propose(input){
-  const {bounds:b,obstacles=[],type='decorative',shape='rectangle',cols=3,gapX=15,gapY=15,dado=95,clearance=8,profile=2}=input;
+  const {bounds:b,obstacles=[],type='decorative',shape='rectangle',cols=3,gapX=15,gapY=15,dado=95,upperPercent=70,clearance=8,profile=2}=input;
   const min=Math.max(12,2*profile+8),errors=[];
-  if(!b||![b.x,b.y,b.w,b.h,gapX,gapY,dado,clearance,profile].every(Number.isFinite)||b.w<=0||b.h<=0||gapX<0||gapY<0||clearance<0)return {candidates:[],recommendedCandidateId:null,warnings:['Dimensions invalides.']};
+  if(!b||![b.x,b.y,b.w,b.h,gapX,gapY,dado,upperPercent,clearance,profile].every(Number.isFinite)||b.w<=0||b.h<=0||gapX<0||gapY<0||clearance<0)return {candidates:[],recommendedCandidateId:null,warnings:['Dimensions invalides.']};
   const left=b.x,right=b.x+b.w,low=b.y,high=b.y+b.h;
   const blocked=obstacles.map(o=>({x:+o.x-clearance,y:+o.y-clearance,w:+o.width+2*clearance,h:+o.height+2*clearance}));
   if(blocked.some(o=>![o.x,o.y,o.w,o.h].every(Number.isFinite)||o.w<=0||o.h<=0))return {candidates:[],recommendedCandidateId:null,warnings:['Ouverture ou obstacle invalide.']};
   const valid=p=>p.w>=min&&p.h>=min&&p.x>=left-1e-5&&p.y>=low-1e-5&&p.x+p.w<=right+1e-5&&p.y+p.h<=high+1e-5&&!blocked.some(o=>overlap(p,o));
-  const zones=type==='base'?[{y:low,h:Math.min(high,dado)-low,kind:'soubassement'}]:type==='mixed'?[{y:low,h:Math.min(high-gapY-min,dado)-low,kind:'soubassement'},{y:Math.min(high-gapY-min,dado)+gapY,h:high-(Math.min(high-gapY-min,dado)+gapY),kind:'haut'}]:[{y:low,h:b.h,kind:'décoratif'}];
+  const lowerHeight=type==='mixed'?(b.h-gapY)*(1-clamp(upperPercent,10,90)/100):Math.min(high,dado)-low;
+  const zones=type==='base'?[{y:low,h:lowerHeight,kind:'soubassement'}]:type==='mixed'?[{y:low,h:lowerHeight,kind:'soubassement'},{y:low+lowerHeight+gapY,h:b.h-lowerHeight-gapY,kind:'haut'}]:[{y:low,h:b.h,kind:'décoratif'}];
   const safeZones=zones.filter(z=>z.h>=min);
   const candidates=[],seen=new Set();
   const add=(panels,method,reason)=>{
@@ -28,13 +29,14 @@ window.AtelierComposition=(()=>{
    const ratios=clean.map(p=>Math.max(p.w/p.h,p.h/p.w));
    const proportions=clean.reduce((s,p,i)=>s+Math.max(0,1-Math.max(0,ratios[i]-3)/5),0)/clean.length;
    const simplicity=1-Math.min(1,(unique(clean.map(p=>p.w)).length+unique(clean.map(p=>p.h)).length-2)/Math.max(4,clean.length*2));
-   const rhythm=1-Math.min(1,Math.abs(clean.length-(Number(cols)||3))/Math.max(3,Number(cols)||3));
+   const columnCount=unique(clean.map(p=>p.x+p.w/2)).length;
+   const rhythm=1-Math.min(1,Math.abs(columnCount-(Number(cols)||3))/Math.max(3,Number(cols)||3));
    const scoreBreakdown={alignment:rnd(alignment),balance:rnd(balance),proportions:rnd(proportions),rhythm:rnd(rhythm),simplicity:rnd(simplicity)};
    const score=rnd(100*(.30*alignment+.25*balance+.20*proportions+.15*rhythm+.10*simplicity)+Math.min(12,coverage*16));
-   candidates.push({id:'proposal-'+(candidates.length+1),panels:clean,score,scoreBreakdown,explanations:[reason],warnings:[],metrics:{count:clean.length,meters:rnd(clean.reduce((s,p)=>s+2*(p.w+p.h),0)/100)},method});
+   candidates.push({id:'proposal-'+(candidates.length+1),panels:clean,columns:columnCount,score,scoreBreakdown,explanations:[reason],warnings:[],metrics:{count:clean.length,meters:rnd(clean.reduce((s,p)=>s+2*(p.w+p.h),0)/100)},method});
   };
   // Family A: balanced regular rhythms, vary the number of columns.
-  for(const count of unique([1,2,3,4,5,cols]).filter(n=>n>=1&&n<=8)){
+  for(const count of unique([1,2,3,4,5,6,cols]).filter(n=>n>=1&&n<=8)){
    const width=(b.w-(count-1)*gapX)/count;if(width<min)continue;
    const panels=[];
    for(const z of safeZones)for(let i=0;i<count;i++){
@@ -113,7 +115,11 @@ window.AtelierComposition=(()=>{
   add([...tall,...short],'architectural-mixed','Panneaux verticaux et cadres sous les fenêtres.');
   // Rank only valid proposals; stable tie-breaker by fewer panels.
   candidates.sort((a,c)=>c.score-a.score||a.panels.length-c.panels.length||a.id.localeCompare(c.id));
-  return {candidates:candidates.slice(0,8),recommendedCandidateId:candidates[0]?.id||null,warnings:candidates.length?[]:['Aucune composition réalisable avec les contraintes actuelles.']};
+  // Variants represent different column counts, not unrelated algorithms.
+  const perColumn=new Map();
+  for(const candidate of candidates)if(!perColumn.has(candidate.columns))perColumn.set(candidate.columns,candidate);
+  const distinct=[...perColumn.values()].sort((a,c)=>c.score-a.score);
+  return {candidates:distinct,recommendedCandidateId:distinct[0]?.id||null,warnings:distinct.length?[]:['Aucune composition réalisable avec les contraintes actuelles.']};
  }
  function generate(input){const r=propose(input),c=r.candidates[0];return {panels:c?.panels||[],warnings:r.warnings,candidates:r.candidates,recommendedCandidateId:r.recommendedCandidateId}}
  return {propose,generate,overlaps:overlap};
