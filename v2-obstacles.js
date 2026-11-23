@@ -39,6 +39,8 @@
     const type=panel.querySelector('#ob-type').value,[y,width,height]=defaults[type];objects.push({id:'ob-'+Date.now()+'-'+objects.length,type,x:0,y,width,height});persist();refresh();
   });
   list.addEventListener('input',e=>{const t=e.target;if(!t.matches('[data-field]'))return;objects[Number(t.dataset.index)][t.dataset.field]=safe(t.value);persist();draw()});
+  // Changes made in the proposal step are persisted by the obstacle editor itself.
+  window.addEventListener('atelier:obstacle-edit',e=>{const {index,field,value}=e.detail||{};if(!objects[index]||!['x','y','width','height'].includes(field))return;objects[index][field]=safe(value);persist();refresh();});
   list.addEventListener('click',e=>{const button=e.target.closest('[data-center]');if(!button)return;
     const i=Number(button.dataset.center),radiator=objects[i],selector=list.querySelector('[data-window-for="'+i+'"]');
     const windowObject=objects[Number(selector?.value)];if(!radiator||!windowObject||windowObject.type!=='window')return;
