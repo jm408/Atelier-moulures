@@ -1,90 +1,92 @@
-// V2.1-B composition engine: decorative rhythm first, obstacles second.
-// Pure geometry; origin bottom-left; all distances in cm.
+// Deterministic decorative proposal engine. Coordinates in cm, bottom-left origin.
 window.AtelierComposition=(()=>{
- const overlaps=(a,b)=>a.x<b.x+b.w-0.001&&a.x+a.w>b.x+0.001&&a.y<b.y+b.h-0.001&&a.y+a.h>b.y+0.001;
- const inside=(p,r)=>p.x>=r.x-0.001&&p.y>=r.y-0.001&&p.x+p.w<=r.x+r.w+0.001&&p.y+p.h<=r.y+r.h+0.001;
- function generate({bounds,obstacles=[],type='decorative',shape='rectangle',cols=3,gapX=15,gapY=15,dado=95,clearance=8,profile=2}){
-  const warnings=[],panels=[],minimum=Math.max(12,profile*2+8);
-  if(![bounds.x,bounds.y,bounds.w,bounds.h,gapX,gapY,dado,clearance,profile].every(Number.isFinite)||bounds.w<=0||bounds.h<=0||gapX<0||gapY<0)return {panels,warnings:['Dimensions de composition invalides.']};
-  cols=Math.max(1,Math.min(12,Math.floor(cols)||1));
-  const restricted=obstacles.map(o=>({x:Number(o.x)-clearance,y:Number(o.y)-clearance,w:Number(o.width)+2*clearance,h:Number(o.height)+2*clearance}));
-  // Shared column axes: never regenerate independently inside each free rectangle.
-  const width=(bounds.w-(cols-1)*gapX)/cols;
-  if(width<minimum)return {panels,warnings:['Trop de colonnes pour la largeur disponible.']};
-  const columns=Array.from({length:cols},(_,i)=>({x:bounds.x+i*(width+gapX),w:width}));
-  let zones=[];
-  if(type==='base')zones=[{name:'soubassement',y:bounds.y,h:Math.min(dado-bounds.y,bounds.h)}];
-  else if(type==='mixed'){
-   const lower=Math.min(dado-bounds.y,bounds.h-gapY-minimum);
-   zones=[{name:'soubassement',y:bounds.y,h:lower},{name:'haut',y:bounds.y+lower+gapY,h:bounds.h-lower-gapY}];
-  }else zones=[{name:'décoratif',y:bounds.y,h:bounds.h}];
-  zones=zones.filter(z=>z.h>=minimum);
-  if(!zones.length)return {panels,warnings:['Hauteur insuffisante pour cette typologie.']};
-  const put=p=>{if(p.w>=minimum&&p.h>=minimum&&inside(p,bounds)&&!restricted.some(o=>overlaps(p,o)))panels.push(p)};
-  for(const z of zones)for(const c of columns){
-   const nominal={x:c.x,y:z.y,w:c.w,h:z.h,kind:z.name};
-   if(shape==='square'&&type==='decorative'){
-    const side=Math.min(nominal.w,nominal.h);
-    nominal.x+=(nominal.w-side)/2;nominal.y+=(nominal.h-side)/2;nominal.w=side;nominal.h=side;
+ const overlap=(a,b)=>a.x<b.x+b.w-1e-6&&a.x+a.w>b.x+1e-6&&a.y<b.y+b.h-1e-6&&a.y+a.h>b.y+1e-6;
+ const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+ const unique=a=>[...new Set(a.filter(Number.isFinite).map(n=>+n.toFixed(2)))].sort((a,b)=>a-b);
+ const rnd=n=>+n.toFixed(2);
+ function propose(input){
+  const {bounds:b,obstacles=[],type='decorative',shape='rectangle',cols=3,gapX=15,gapY=15,dado=95,clearance=8,profile=2}=input;
+  const min=Math.max(12,2*profile+8),errors=[];
+  if(!b||![b.x,b.y,b.w,b.h,gapX,gapY,dado,clearance,profile].every(Number.isFinite)||b.w<=0||b.h<=0||gapX<0||gapY<0||clearance<0)return {candidates:[],recommendedCandidateId:null,warnings:['Dimensions invalides.']};
+  const left=b.x,right=b.x+b.w,low=b.y,high=b.y+b.h;
+  const blocked=obstacles.map(o=>({x:+o.x-clearance,y:+o.y-clearance,w:+o.width+2*clearance,h:+o.height+2*clearance}));
+  if(blocked.some(o=>![o.x,o.y,o.w,o.h].every(Number.isFinite)||o.w<=0||o.h<=0))return {candidates:[],recommendedCandidateId:null,warnings:['Ouverture ou obstacle invalide.']};
+  const valid=p=>p.w>=min&&p.h>=min&&p.x>=left-1e-5&&p.y>=low-1e-5&&p.x+p.w<=right+1e-5&&p.y+p.h<=high+1e-5&&!blocked.some(o=>overlap(p,o));
+  const zones=type==='base'?[{y:low,h:Math.min(high,dado)-low,kind:'soubassement'}]:type==='mixed'?[{y:low,h:Math.min(high-gapY-min,dado)-low,kind:'soubassement'},{y:Math.min(high-gapY-min,dado)+gapY,h:high-(Math.min(high-gapY-min,dado)+gapY),kind:'haut'}]:[{y:low,h:b.h,kind:'décoratif'}];
+  const safeZones=zones.filter(z=>z.h>=min);
+  const candidates=[],seen=new Set();
+  const add=(panels,method,reason)=>{
+   const clean=panels.map(p=>({...p,x:rnd(p.x),y:rnd(p.y),w:rnd(p.w),h:rnd(p.h)})).filter(valid);
+   if(!clean.length)return;
+   // Candidate must not contain overlapping frames.
+   if(clean.some((p,i)=>clean.slice(i+1).some(q=>overlap(p,q))))return;
+   const key=clean.map(p=>[p.x,p.y,p.w,p.h].join(':')).sort().join('|');if(seen.has(key))return;seen.add(key);
+   const area=clean.reduce((s,p)=>s+p.w*p.h,0),coverage=area/(b.w*b.h);
+   const xCenters=clean.map(p=>p.x+p.w/2),balance=1-Math.min(1,Math.abs(clean.reduce((s,p)=>s+(p.x+p.w/2-(left+right)/2)*p.w*p.h,0)/(area*b.w/2||1)));
+   const tops=unique(clean.map(p=>p.y+p.h)),bottoms=unique(clean.map(p=>p.y));
+   const alignment=1-Math.min(1,((tops.length-1)+(bottoms.length-1))/Math.max(1,clean.length*2));
+   const ratios=clean.map(p=>Math.max(p.w/p.h,p.h/p.w));
+   const proportions=clean.reduce((s,p,i)=>s+Math.max(0,1-Math.max(0,ratios[i]-3)/5),0)/clean.length;
+   const simplicity=1-Math.min(1,(unique(clean.map(p=>p.w)).length+unique(clean.map(p=>p.h)).length-2)/Math.max(4,clean.length*2));
+   const rhythm=1-Math.min(1,Math.abs(clean.length-(Number(cols)||3))/Math.max(3,Number(cols)||3));
+   const scoreBreakdown={alignment:rnd(alignment),balance:rnd(balance),proportions:rnd(proportions),rhythm:rnd(rhythm),simplicity:rnd(simplicity)};
+   const score=rnd(100*(.30*alignment+.25*balance+.20*proportions+.15*rhythm+.10*simplicity)+Math.min(12,coverage*16));
+   candidates.push({id:'proposal-'+(candidates.length+1),panels:clean,score,scoreBreakdown,explanations:[reason],warnings:[],metrics:{count:clean.length,meters:rnd(clean.reduce((s,p)=>s+2*(p.w+p.h),0)/100)},method});
+  };
+  // Family A: balanced regular rhythms, vary the number of columns.
+  for(const count of unique([1,2,3,4,5,cols]).filter(n=>n>=1&&n<=8)){
+   const width=(b.w-(count-1)*gapX)/count;if(width<min)continue;
+   const panels=[];
+   for(const z of safeZones)for(let i=0;i<count;i++){
+    let p={x:left+i*(width+gapX),y:z.y,w:width,h:z.h,kind:z.kind};
+    if(shape==='square'&&type==='decorative'){const side=Math.min(p.w,p.h);p={...p,x:p.x+(p.w-side)/2,y:p.y+(p.h-side)/2,w:side,h:side}}
+    if(valid(p))panels.push(p);
    }
-   if(!restricted.some(o=>overlaps(nominal,o))){put(nominal);continue}
-   // Preserve common axes and horizontal rhythm. Split at obstacle edges vertically;
-   // never shift a single column sideways or create an arbitrary thin side strip.
-   const cuts=[nominal.y,nominal.y+nominal.h];
-   restricted.forEach(o=>{if(o.x<nominal.x+nominal.w&&o.x+o.w>nominal.x){cuts.push(Math.max(nominal.y,Math.min(nominal.y+nominal.h,o.y)));cuts.push(Math.max(nominal.y,Math.min(nominal.y+nominal.h,o.y+o.h)))}});
-   const sorted=[...new Set(cuts.map(v=>Number(v.toFixed(3))))].sort((a,b)=>a-b);
-   let segments=[];
-   for(let i=0;i<sorted.length-1;i++){const candidate={...nominal,y:sorted[i],h:sorted[i+1]-sorted[i]};if(candidate.h>=minimum&&!restricted.some(o=>overlaps(candidate,o)))segments.push(candidate)}
-   // Keep a single panel if possible; multiple stacked panels require the requested gap.
-   segments.sort((a,b)=>b.h-a.h);
-   if(segments.length){const best=segments[0];put({...best,y:best.y+Math.min(2,best.h/8),h:best.h-2*Math.min(2,best.h/8)})}
-   else warnings.push('Colonne '+(columns.indexOf(c)+1)+' : espace insuffisant autour des ouvertures.');
+   add(panels,'regular','Rythme régulier avec '+count+' colonne(s).');
   }
-  // Adaptive alternative: when rigid columns discard most of the wall, use
-  // obstacle edges as architectural anchors and propose panels in free bays.
-  // Score the alternatives rather than forcing the user to move openings.
-  if(type==='decorative'&&obstacles.length){
-   const adaptive=[];
-   const epsilon=0.01;
-   const left=bounds.x,right=bounds.x+bounds.w,bottom=bounds.y,top=bounds.y+bounds.h;
-   const edges=[left,right,...restricted.flatMap(o=>[Math.max(left,Math.min(right,o.x)),Math.max(left,Math.min(right,o.x+o.w))])];
-   const xs=[...new Set(edges.map(v=>Number(v.toFixed(3))))].sort((a,b)=>a-b);
-   // Generate full-height panels in free vertical bays and shorter panels below/above openings.
-   for(let i=0;i<xs.length-1;i++){
-    const x1=xs[i],x2=xs[i+1];
-    if(x2-x1<minimum+4)continue;
-    const crossing=restricted.filter(o=>o.x<x2-epsilon&&o.x+o.w>x1+epsilon);
-    const yEdges=[bottom,top,...crossing.flatMap(o=>[Math.max(bottom,Math.min(top,o.y)),Math.max(bottom,Math.min(top,o.y+o.h))])];
-    const ys=[...new Set(yEdges.map(v=>Number(v.toFixed(3))))].sort((a,b)=>a-b);
-    const free=[];
-    for(let j=0;j<ys.length-1;j++){
-     const p={x:x1+2,y:ys[j]+2,w:x2-x1-4,h:ys[j+1]-ys[j]-4,kind:'décoratif'};
-     if(p.w>=minimum&&p.h>=minimum&&!restricted.some(o=>overlaps(p,o)))free.push(p);
+  // Family B: opening-aware architectural bays. Use obstacle edges as anchors;
+  // add a panel under windows and tall panels in side bays when possible.
+  const edges=unique([left,right,...blocked.flatMap(o=>[clamp(o.x,left,right),clamp(o.x+o.w,left,right)])]);
+  const bays=[];
+  for(let i=0;i<edges.length-1;i++){
+   const x=edges[i]+2,w=edges[i+1]-edges[i]-4;if(w<min)continue;
+   for(const z of safeZones){
+    const cuts=unique([z.y,z.y+z.h,...blocked.filter(o=>o.x<x+w&&o.x+o.w>x).flatMap(o=>[clamp(o.y,z.y,z.y+z.h),clamp(o.y+o.h,z.y,z.y+z.h)])]);
+    let free=[];
+    for(let j=0;j<cuts.length-1;j++){
+     const p={x,y:cuts[j]+2,w,h:cuts[j+1]-cuts[j]-4,kind:z.kind};
+     if(valid(p))free.push(p);
     }
-    // Merge adjacent free bands to avoid unnecessary horizontal divisions.
-    let merged=[];
-    for(const p of free){const prev=merged[merged.length-1];if(prev&&Math.abs(prev.y+prev.h+4-p.y)<epsilon){prev.h=p.y+p.h-prev.y}else merged.push({...p})}
-    adaptive.push(...merged);
-   }
-   // Merge horizontally adjacent panels with the same vertical span; the gap is
-   // applied after merging so a broad wall bay becomes one intentional panel.
-   adaptive.sort((a,b)=>a.y-b.y||a.h-b.h||a.x-b.x);
-   const merged=[];
-   for(const p of adaptive){
-    const prev=merged[merged.length-1];
-    if(prev&&Math.abs(prev.y-p.y)<epsilon&&Math.abs(prev.h-p.h)<epsilon&&Math.abs(prev.x+prev.w+4-p.x)<epsilon)prev.w=p.x+p.w-prev.x;
-    else merged.push({...p});
-   }
-   const usable=merged.filter(p=>p.w>=Math.max(minimum,24)&&p.h>=Math.max(minimum,24));
-   const score=arr=>arr.reduce((n,p)=>n+p.w*p.h,0)-arr.length*150;
-   if(usable.length&&score(usable)>score(panels)*1.12){
-    panels.splice(0,panels.length,...usable);
-    warnings.length=0;
-    warnings.push('Composition adaptée automatiquement aux ouvertures.');
+    // Merge vertically adjacent bands where there is no obstacle.
+    const merged=[];
+    for(const p of free){const prev=merged[merged.length-1];if(prev&&Math.abs(prev.y+prev.h+4-p.y)<.1){const candidate={...prev,h:p.y+p.h-prev.y};if(valid(candidate)){prev.h=candidate.h;continue}}merged.push({...p})}
+    bays.push(...merged);
    }
   }
-  if(!panels.length)warnings.push('Aucun cadre compatible avec les contraintes.');
-  return {panels,warnings};
+  // Consolidate horizontal neighboring bays with the same vertical bounds,
+  // but never cross a blocked rectangle.
+  function combine(items){
+   const result=items.map(p=>({...p}));let changed=true;
+   while(changed){changed=false;outer:for(let i=0;i<result.length;i++)for(let j=i+1;j<result.length;j++){
+    const a=result[i],c=result[j];
+    if(Math.abs(a.y-c.y)>.1||Math.abs(a.h-c.h)>.1)continue;
+    const l=Math.min(a.x,c.x),r=Math.max(a.x+a.w,c.x+c.w);
+    if(r-l>a.w+c.w+10)continue;
+    const p={...a,x:l,w:r-l};if(valid(p)){result.splice(j,1);result[i]=p;changed=true;break outer}
+   }}
+   return result;
+  }
+  const merged=combine(bays);
+  add(merged,'architectural','Cadres adaptés aux axes des portes et fenêtres.');
+  add(bays,'architectural-detail','Cadres indépendants dans les espaces disponibles.');
+  // Family C: prefer strong tall panels and a short panel below the window.
+  const tall=merged.filter(p=>p.h>=Math.max(min,b.h*.48));
+  const short=merged.filter(p=>p.h<Math.max(min,b.h*.48)&&p.w>=min*1.5);
+  add([...tall,...short],'architectural-mixed','Panneaux verticaux et cadres sous les fenêtres.');
+  // Rank only valid proposals; stable tie-breaker by fewer panels.
+  candidates.sort((a,c)=>c.score-a.score||a.panels.length-c.panels.length||a.id.localeCompare(c.id));
+  return {candidates:candidates.slice(0,8),recommendedCandidateId:candidates[0]?.id||null,warnings:candidates.length?[]:['Aucune composition réalisable avec les contraintes actuelles.']};
  }
- return {generate,overlaps};
+ function generate(input){const r=propose(input),c=r.candidates[0];return {panels:c?.panels||[],warnings:r.warnings,candidates:r.candidates,recommendedCandidateId:r.recommendedCandidateId}}
+ return {propose,generate,overlaps:overlap};
 })();
