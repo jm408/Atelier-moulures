@@ -12,8 +12,9 @@
  if(canvas){stage.append(stageHead,canvas);canvas.classList.add('atelier-canvas-card')}
  else stage.append(stageHead);
  main.replaceChildren(shell);shell.append(stage,aside);
- aside.append(wall,obstacles,style,proposals,plan);
+ const importCard=document.querySelector('#project-import');if(importCard)aside.append(importCard);aside.append(wall,obstacles,style,proposals,plan);
  const originalShow=()=>{const active=Number(nav.querySelector('[data-step].active')?.dataset.step||0);
+  if(importCard)importCard.style.display=active===0?'':'none';
   const source=active>=2?document.querySelector('#result-svg'):document.querySelector('#drawing');
   const title=['Définir mon mur','Choisir mon style','Personnaliser mes cadres','Préparer mon plan'][active];
   stageHead.querySelector('h2').textContent=title;
