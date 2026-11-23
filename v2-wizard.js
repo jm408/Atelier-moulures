@@ -30,11 +30,15 @@
  const geometry=document.createElement('div');geometry.id='style-geometry';
  geometry.innerHTML='<h3>Marges et espacements</h3>';
  geometry.append(compFields);
+ // One heading only: this section contains margins and spacing, not supplies.
+ const legacyHeading=compFields.querySelector('h3');if(legacyHeading)legacyHeading.remove();
  document.querySelector('#style-essentials').after(geometry);
  while(controls.firstChild)geometry.append(controls.firstChild);
  // FormData(#settings) must still include moved controls, even outside the form.
  [geometry,supply].forEach(root=>root.querySelectorAll('input[name],select[name]').forEach(input=>input.setAttribute('form','settings')));
  advanced.remove();
+ // Normalize checkbox rows: text on the left, checkbox on the right.
+ for(const id of ['dado-rail','rail-auto']){const checkbox=document.getElementById(id);const row=checkbox?.closest('label');if(!row)continue;const caption=row.textContent.trim();row.replaceChildren();const span=document.createElement('span');span.textContent=caption;row.append(span,checkbox);row.classList.add('style-checkbox-row');}
  // No silent purchasing estimate: require explicit supplier stock length before confirmation.
 
  const launch=document.createElement('button');launch.type='button';launch.className='secondary';launch.id='open-composition';launch.textContent='📏 Fournitures : renseigner les baguettes';
@@ -93,9 +97,9 @@
  .wizard-footer{justify-content:space-between;align-items:center;margin-bottom:40px}
  #style-essentials{padding:12px 16px;background:#f5f3ee;border-radius:10px;margin:14px 0}
  #style-essentials input[type=checkbox]{width:auto;margin-left:auto;flex:none;order:2}
- #style-essentials label:has(input[type=checkbox]){display:flex;flex-direction:row-reverse;justify-content:space-between;gap:12px}
- #style-essentials label:has(input[type=checkbox]) input{margin:0}
- #style-essentials label:has(input[type=checkbox]){text-align:left}
+ #style-essentials label.style-checkbox-row{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:12px;width:100%;text-align:left}
+ #style-essentials label.style-checkbox-row input[type=checkbox]{width:18px;height:18px;margin:0;justify-self:end}
+
  #proposal-choices button{flex:1;min-width:125px}
  #proposal-refine{padding:14px;background:#f5f3ee;border-radius:10px;margin:14px 0}
  .refine-header{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap}
