@@ -78,7 +78,7 @@
      const button=document.createElement('button');button.type='button';
      button.textContent=(i===0?'Recommandée · ':'')+p.columns+' colonne'+(p.columns>1?'s':'')+' · '+p.panels.length+' cadres';
      button.className=p.id===selectedProposal?'':'secondary';
-     button.onclick=()=>{selectedProposal=p.id;calculate()};
+     button.onclick=()=>{selectedProposal=p.id;selectedPanelIndex=null;calculate()};
      choices.append(button);
    });
    $('proposal-explanation').textContent=chosen?(chosen.explanations.join(' ')+' · Évaluation indicative : '+chosen.score+'/100.'):(manual?'Aucune proposition valide à '+desiredCols+' colonnes. Essayez une autre valeur ou ajustez les contraintes.':'Aucune composition recommandable.');
