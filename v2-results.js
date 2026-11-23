@@ -6,19 +6,23 @@
  main.style.display='flex';main.style.flexDirection='column';main.style.maxWidth='850px';
  form.closest('.panel').querySelector('h2').textContent='1. Définir le mur';
  const section=document.createElement('section');section.className='panel';section.innerHTML=`
- <h2>2. Composer les moulures</h2><label>Typologie <select id="typology"><option value="decorative">Cadres décoratifs</option><option value="base">Soubassement</option><option value="mixed">Composition mixte</option></select></label><label>Forme <select id="panel-shape"><option value="rectangle">Rectangles</option><option value="square">Carrés</option></select></label><label>Hauteur de soubassement depuis le sol (cm) <input id="dado-height" type="number" min="30" step="5" value="95"></label><label>Nombre de colonnes <input id="typology-cols" type="number" min="1" max="12" value="3"></label>
- <p class="hint">Les cadres suivent des axes communs et sont adaptés aux ouvertures. Les zones incompatibles restent libres.</p>
- <div id="composition-controls"></div><label>Disposition <select id="layout-mode" style="padding:8px;border-radius:7px"><option value="auto">Adaptée aux obstacles</option><option value="three">3 panneaux symétriques (mur libre)</option></select></label>
+ <h2>2. Composer les moulures</h2><label>Typologie <select id="typology"><option value="decorative">Cadres décoratifs</option><option value="base">Soubassement</option><option value="mixed">Composition mixte</option></select></label><label>Forme <select id="panel-shape"><option value="rectangle">Rectangles</option><option value="square">Carrés</option></select></label><label>Hauteur de soubassement depuis le sol (cm) <input id="dado-height" type="number" min="30" step="5" value="95"></label><label>Nombre de colonnes souhaité <input id="typology-cols" type="number" min="1" max="12" value="3"></label>
+ <p class="hint">L’application propose une composition adaptée au mur. Les réglages détaillés restent facultatifs.</p>
+ <details id="advanced"><summary style="cursor:pointer;font-weight:650;margin:16px 0">Ajuster la composition (facultatif)</summary><div id="composition-controls"></div><label>Disposition <select id="layout-mode" style="padding:8px;border-radius:7px"><option value="auto">Adaptée aux obstacles</option><option value="three">3 panneaux symétriques (mur libre)</option></select></label>
  <p class="hint">Aide d’alignement : les panneaux d’une même zone sont répartis à largeur égale et à intervalles réguliers.</p><label>Cadres par zone libre <input id="zone-cols" type="number" min="1" max="8" step="1" value="1"></label>
  <label>Largeur du panneau central (cm) <input id="center-width" type="number" value="125" min="30" step="5"></label>
  <label>Dégagement autour des obstacles (cm) <input id="clearance" type="number" value="8" min="0" step="1"></label>
- <h2 style="margin-top:24px">3. Résultat du calepinage</h2><p id="result-notice" class="hint" role="status"></p>
+ </details><h2 style="margin-top:24px">3. Proposition recommandée</h2><div id="proposal-choices" class="buttons"></div><p id="proposal-explanation" class="hint"></p><p id="result-notice" class="hint" role="status"></p>
  <svg id="result-svg" viewBox="0 0 600 380" role="img" aria-label="Résultat : mur, ouvertures et panneaux calculés"></svg>
  <h3>Dimensions et quantités du résultat</h3><div class="stats"><div class="stat">Panneaux<strong id="result-count">—</strong></div><div class="stat">Baguettes théoriques<strong id="result-meters">—</strong></div><div class="stat">Barres estimées<strong id="result-bars">—</strong></div><div class="stat">Conflits<strong id="result-conflicts">—</strong></div></div>
  <p class="hint">Estimations des seuls cadres affichés. Les plinthes et corniches ne sont pas comprises dans ce métré. La découpe réelle et les dégagements doivent être vérifiés sur place.</p>
  <h3>Liste des coupes des cadres à 45°</h3><table><thead><tr><th>Pièce</th><th>Quantité</th><th>Longueur extérieure</th></tr></thead><tbody id="result-cuts"></tbody></table>`;
  obstaclePanel.after(section);
  section.querySelector('#composition-controls').append(document.querySelector('#composition-fields'));
+ section.querySelector('#composition-controls').prepend(section.querySelector('#typology-cols').closest('label'));
+ section.querySelector('#composition-controls').append(section.querySelector('#clearance').closest('label'));
+ section.querySelector('#composition-controls').append(section.querySelector('#dado-height').closest('label'));
+
  const comp=document.querySelector('#composition-fields');
  comp.querySelectorAll('input').forEach(input=>input.setAttribute('form','settings'));
  comp.querySelector('h3').textContent='Marges, espacements et baguettes';
@@ -32,6 +36,7 @@
  controls.insertAdjacentHTML('afterbegin','<div id="regular-controls"><label>Colonnes <input id="regular-cols" type="number" min="1" max="12" value="3"></label><label>Rangées <input id="regular-rows" type="number" min="1" max="5" value="1"></label></div>');
  const syncMode=()=>{section.querySelector('#regular-controls').style.display='none';section.querySelector('#dado-height').closest('label').style.display=section.querySelector('#typology').value==='decorative'?'none':'flex';section.querySelector('#panel-shape').closest('label').style.display=section.querySelector('#typology').value==='decorative'?'flex':'none'};section.querySelector('#typology').addEventListener('change',syncMode);syncMode();
  const $=id=>document.getElementById(id), num=name=>Number(form.elements[name].value);
+ let selectedProposal=null,lastSignature='';
  const types={door:'Porte',window:'Fenêtre',radiator:'Radiateur'};
  const svgNS='http://www.w3.org/2000/svg';
  const add=(parent,tag,attrs,txt)=>{const e=document.createElementNS(svgNS,tag);Object.entries(attrs).forEach(([k,v])=>e.setAttribute(k,v));if(txt!==undefined)e.textContent=txt;parent.append(e);return e};
@@ -56,7 +61,22 @@
      cols:Number($('typology-cols').value),gapX:gap,gapY:num('gapY'),
      dado:Number($('dado-height').value),clearance,profile
    });
-   const panels=result.panels,warning=result.warnings;
+   const signature=JSON.stringify({limits,obs,type:$('typology').value,shape:$('panel-shape').value,cols:$('typology-cols').value,gap,clearance,profile,dado:$('dado-height').value,gapY:num('gapY')});
+   if(signature!==lastSignature){selectedProposal=null;lastSignature=signature}
+   const proposals=result.candidates||[];
+   if(!proposals.some(p=>p.id===selectedProposal))selectedProposal=result.recommendedCandidateId;
+   const chosen=proposals.find(p=>p.id===selectedProposal);
+   const panels=chosen?.panels||[],warning=result.warnings;
+   const choices=$('proposal-choices');choices.replaceChildren();
+   proposals.slice(0,3).forEach((p,i)=>{
+     const button=document.createElement('button');button.type='button';
+     button.textContent=(i===0?'Recommandée':'Variante '+i)+' · '+p.panels.length+' cadres';
+     button.className=p.id===selectedProposal?'':'secondary';
+     button.onclick=()=>{selectedProposal=p.id;calculate()};
+     choices.append(button);
+   });
+   $('proposal-explanation').textContent=chosen?(chosen.explanations.join(' ')+' · Évaluation indicative : '+chosen.score+'/100.'):'';
+
    const invalidObs=obs.filter(o=>![o.x,o.y,o.width,o.height].every(v=>Number.isFinite(Number(v)))||Number(o.x)<0||Number(o.y)<0||Number(o.x)+Number(o.width)>w||Number(o.y)+Number(o.height)>h||Number(o.width)<=0||Number(o.height)<=0);
    const collisions=panels.filter(p=>blocked.some(o=>overlap(p,o)));
    panels.forEach((p,i)=>add(svg,'rect',{x:ox+p.x*s,y:sy(p.y+p.h),width:p.w*s,height:p.h*s,fill:'none',stroke:collisions.includes(p)?'#c02929':'#9a7d5c','stroke-width':Math.max(1.5,profile*s)}));
@@ -69,7 +89,7 @@
    const pieces=new Map();for(const p of panels)for(const len of [p.w,p.w,p.h,p.h]){const k=len.toFixed(1);pieces.set(k,(pieces.get(k)||0)+1)}
    $('result-cuts').innerHTML=[...pieces].sort((a,b)=>Number(b[0])-Number(a[0])).map(([length,count])=>'<tr><td>Cadre</td><td>'+count+'</td><td>'+fmt(Number(length))+' cm</td></tr>').join('')||'<tr><td colspan="3">Aucun cadre réalisable</td></tr>';
    $('result-notice').textContent=[...warning,...(conflicts?[conflicts+' conflit(s) à corriger.']:[]),...(!panels.length?['Aucun panneau possible avec ces dimensions.']:[]),'Proposition décorative indicative : vérifier les dimensions et ajuster avant achat.'].join(' ');
-   $('result-notice').className=conflicts||warning.length?'warn':'hint';
+   $('result-notice').className=conflicts||!panels.length?'warn':'hint';
  }
  // The V2.1-A editor persists obstacles on input. Observe its editor for edits, additions and removal.
  // Pointer drag: move an obstacle visually, then refine exact X/Y in the form.
