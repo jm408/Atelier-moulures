@@ -63,4 +63,37 @@
  @media(max-width:900px){.atelier-shell{grid-template-columns:1fr}.atelier-stage{position:static;min-height:0}.atelier-v22 .wizard-nav button{min-width:44%;font-size:12px}.atelier-v22 main{padding:12px}.atelier-v22 .wizard-nav{padding:0 12px}.atelier-v22 .atelier-stage{padding:12px}.atelier-stage-badge{display:none}}
  `;document.head.append(css);
  originalShow();
+
+ const palette=document.createElement('style');palette.textContent=`
+ :root{--bg-app:#FAFAF9;--bg-canvas:#F5F5F4;--bg-panel:#FFFFFF;--border-subtle:#E7E5E4;--wall-default:#D6D3D1;--color-primary:#1B3B2E;--color-primary-hover:#142C22;--color-accent:#C5A059;--color-accent-light:#F6EFE2;--text-main:#1C1917;--text-muted:#57534E;--text-subtle:#A8A29E;--state-warning-text:#D97706;--state-warning-bg:#FEF3C7;--state-error-text:#B91C1C;--state-error-bg:#FEE2E2;--blueprint-bg:#0A192F;--blueprint-stroke:#64FFDA;--blueprint-grid:rgba(100,255,218,.12)}
+ body.atelier-v22{background:var(--bg-app)!important;color:var(--text-main)!important}
+ .atelier-v22 header{background:var(--bg-app)!important;color:var(--text-main)!important;border-bottom:1px solid var(--border-subtle)!important;padding-top:18px!important;padding-bottom:18px!important}
+ .atelier-v22 header h1{color:var(--text-main)!important}
+ .atelier-v22 header p{color:var(--text-muted)!important}
+ .atelier-v22 .atelier-stage{background:var(--bg-canvas)!important;border-color:var(--border-subtle)!important;box-shadow:none!important}
+ .atelier-v22 .atelier-canvas-card,.atelier-v22 .atelier-sidebar>.panel{background:var(--bg-panel)!important;border-color:var(--border-subtle)!important}
+ .atelier-v22 .atelier-stage-head h2,.atelier-v22 .atelier-sidebar h2{color:var(--text-main)!important}
+ .atelier-v22 .atelier-stage-head p,.atelier-v22 .hint{color:var(--text-muted)}
+ .atelier-v22 .atelier-stage-badge{background:var(--color-accent-light);border-color:#e9ddc7;color:#8a6b34}
+ .atelier-v22 .wizard-nav{display:flex;justify-content:center;align-items:center;gap:0!important;margin:16px auto 10px!important}
+ .atelier-v22 .wizard-nav button{flex:0 1 auto;min-width:0!important;background:transparent!important;border:0!important;border-radius:0!important;color:var(--text-subtle)!important;box-shadow:none!important;display:flex;align-items:center;justify-content:center;gap:9px;padding:12px 14px!important;font-size:13px;white-space:nowrap}
+ .atelier-v22 .wizard-nav button::before{content:attr(data-number);width:29px;height:29px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;background:#E7E5E4;color:#78716C;font-weight:700;font-size:12px;flex-shrink:0}
+ .atelier-v22 .wizard-nav button.active{color:var(--text-main)!important;font-weight:700}
+ .atelier-v22 .wizard-nav button.active::before{background:var(--color-primary);color:white}
+ .atelier-v22 .wizard-nav button.completed{color:var(--text-muted)!important}
+ .atelier-v22 .wizard-nav button.completed::before{content:'✓';background:var(--color-accent);color:#fff}
+ .atelier-v22 .wizard-nav button:not(:last-child)::after{content:'';width:26px;height:1px;background:#D6D3D1;margin-left:8px}
+ .atelier-v22 button:not(.wizard-nav button):not(.secondary){background:var(--color-primary)}
+ .atelier-v22 button:not(.wizard-nav button):not(.secondary):hover{background:var(--color-primary-hover)}
+ .atelier-v22 input:focus-visible,.atelier-v22 button:focus-visible{outline:2px solid var(--color-accent);outline-offset:2px}
+ .atelier-v22 .warn{color:var(--state-warning-text)}
+ @media(max-width:720px){.atelier-v22 .wizard-nav{flex-wrap:wrap}.atelier-v22 .wizard-nav button{flex:1 1 46%;font-size:12px;padding:8px!important}.atelier-v22 .wizard-nav button::after{display:none}}
+ `;document.head.append(palette);
+ const stepButtons=[...nav.querySelectorAll('[data-step]')];
+ stepButtons.forEach((b,i)=>{b.dataset.number=String(i+1);b.textContent=['Mon mur','Mon style','Mes propositions','Mon plan'][i]});
+ const paintSteps=()=>{const active=Number(nav.querySelector('[data-step].active')?.dataset.step||0);stepButtons.forEach((b,i)=>{b.classList.toggle('completed',i<active);b.setAttribute('aria-label',(i<active?'Étape terminée : ':i===active?'Étape actuelle : ':'Étape à venir : ')+b.textContent)})};
+ nav.addEventListener('click',()=>setTimeout(paintSteps,0));
+ document.querySelector('#wizard-next')?.addEventListener('click',()=>setTimeout(paintSteps,0));
+ document.querySelector('#wizard-prev')?.addEventListener('click',()=>setTimeout(paintSteps,0));
+ paintSteps();
 })();
