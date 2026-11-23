@@ -7,8 +7,8 @@
  form.closest('.panel').querySelector('h2').textContent='1. Définir le mur';
  const section=document.createElement('section');section.className='panel';section.innerHTML=`
  <h2>2. Composer les moulures</h2><label>Typologie <select id="typology"><option value="decorative">Cadres décoratifs</option><option value="base">Soubassement</option><option value="mixed">Composition mixte</option></select></label><label>Forme <select id="panel-shape"><option value="rectangle">Rectangles</option><option value="square">Carrés</option></select></label><label>Hauteur de soubassement depuis le sol (cm) <input id="dado-height" type="number" min="30" step="5" value="95"></label><label>Nombre de colonnes souhaité <input id="typology-cols" type="number" min="1" max="12" value="3"></label>
- <p class="hint">L’application propose une composition adaptée au mur. Les réglages détaillés restent facultatifs.</p>
- <details id="advanced"><summary style="cursor:pointer;font-weight:650;margin:16px 0">Ajuster la composition (facultatif)</summary><div id="composition-controls"></div><label>Répartition des cadres supérieurs (%) <input id="upper-percent" type="number" min="10" max="90" step="5" value="70"></label><label><input id="dado-rail" type="checkbox"> Ajouter une cimaise de séparation</label><label>Hauteur de la cimaise depuis le sol (cm) <input id="rail-height" type="number" min="30" step="5" value="95"></label><label>Largeur du profil de cimaise (mm) <input id="rail-profile" type="number" min="5" step="1" value="20"></label><label>Disposition <select id="layout-mode" style="padding:8px;border-radius:7px"><option value="auto">Adaptée aux obstacles</option><option value="three">3 panneaux symétriques (mur libre)</option></select></label>
+ <p class="hint">Choisissez une typologie. La composition sera proposée automatiquement à l’étape suivante.</p><div id="style-essentials"><label>Nombre de colonnes <select id="column-mode"><option value="auto">Automatique (recommandé)</option><option value="manual">Personnalisé</option></select></label><label id="column-count-label">Colonnes souhaitées <input id="column-count" type="number" min="1" max="8" value="3"></label></div>
+ <details id="advanced"><summary style="cursor:pointer;font-weight:650;margin:16px 0">Ajuster la composition (facultatif)</summary><div id="composition-controls"></div><label>Répartition des cadres supérieurs (%) <input id="upper-percent" type="number" min="10" max="90" step="5" value="70"></label><label><input id="dado-rail" type="checkbox"> Ajouter une cimaise de séparation</label><label>Hauteur de la cimaise depuis le sol (cm) <input id="rail-height" type="number" min="30" step="5" value="95"></label><label><input id="rail-auto" type="checkbox" checked> Aligner la cimaise sur la séparation</label><label>Largeur du profil de cimaise (mm) <input id="rail-profile" type="number" min="5" step="1" value="20"></label><label>Disposition <select id="layout-mode" style="padding:8px;border-radius:7px"><option value="auto">Adaptée aux obstacles</option><option value="three">3 panneaux symétriques (mur libre)</option></select></label>
  <p class="hint">Aide d’alignement : les panneaux d’une même zone sont répartis à largeur égale et à intervalles réguliers.</p><label>Cadres par zone libre <input id="zone-cols" type="number" min="1" max="8" step="1" value="1"></label>
  <label>Largeur du panneau central (cm) <input id="center-width" type="number" value="125" min="30" step="5"></label>
  <label>Dégagement autour des obstacles (cm) <input id="clearance" type="number" value="8" min="0" step="1"></label>
@@ -22,6 +22,8 @@
  section.querySelector('#composition-controls').prepend(section.querySelector('#typology-cols').closest('label'));
  section.querySelector('#composition-controls').append(section.querySelector('#clearance').closest('label'));
  section.querySelector('#composition-controls').append(section.querySelector('#dado-height').closest('label'));
+ section.querySelector('#style-essentials').append(section.querySelector('#upper-percent').closest('label'),section.querySelector('#dado-height').closest('label'),section.querySelector('#dado-rail').closest('label'),section.querySelector('#rail-auto').closest('label'),section.querySelector('#rail-height').closest('label'),section.querySelector('#rail-profile').closest('label'));
+ section.querySelector('#column-count-label').style.display='none';section.querySelector('#column-mode').addEventListener('change',()=>{section.querySelector('#column-count-label').style.display=section.querySelector('#column-mode').value==='manual'?'flex':'none';calculate()});
 
  const comp=document.querySelector('#composition-fields');
  comp.querySelectorAll('input').forEach(input=>input.setAttribute('form','settings'));
@@ -34,7 +36,7 @@
  modeSelect.innerHTML='<option value="auto">Automatique — obstacles</option><option value="regular">Régulier — grille</option><option value="three">Personnalisé — 3 panneaux symétriques</option>';
  const controls=section.querySelector('#composition-controls');
  controls.insertAdjacentHTML('afterbegin','<div id="regular-controls"><label>Colonnes <input id="regular-cols" type="number" min="1" max="12" value="3"></label><label>Rangées <input id="regular-rows" type="number" min="1" max="5" value="1"></label></div>');
- const syncMode=()=>{const t=section.querySelector('#typology').value,rail=section.querySelector('#dado-rail').checked;section.querySelector('#regular-controls').style.display='none';section.querySelector('#dado-height').closest('label').style.display=t==='base'?'flex':'none';section.querySelector('#upper-percent').closest('label').style.display=t==='mixed'?'flex':'none';section.querySelector('#dado-rail').closest('label').style.display=t==='decorative'?'none':'flex';section.querySelector('#rail-height').closest('label').style.display=t!=='decorative'&&rail?'flex':'none';section.querySelector('#rail-profile').closest('label').style.display=t!=='decorative'&&rail?'flex':'none';section.querySelector('#panel-shape').closest('label').style.display=t==='decorative'?'flex':'none'};section.querySelector('#dado-rail').addEventListener('change',syncMode);section.querySelector('#typology').addEventListener('change',syncMode);syncMode();
+ const syncMode=()=>{const t=section.querySelector('#typology').value,rail=section.querySelector('#dado-rail').checked;section.querySelector('#regular-controls').style.display='none';section.querySelector('#dado-height').closest('label').style.display=t==='base'?'flex':'none';section.querySelector('#upper-percent').closest('label').style.display=t==='mixed'?'flex':'none';section.querySelector('#dado-rail').closest('label').style.display=t==='decorative'?'none':'flex';section.querySelector('#rail-height').closest('label').style.display=t!=='decorative'&&rail&&!section.querySelector('#rail-auto').checked?'flex':'none';section.querySelector('#rail-auto').closest('label').style.display=t!=='decorative'&&rail?'flex':'none';section.querySelector('#rail-profile').closest('label').style.display=t!=='decorative'&&rail?'flex':'none';section.querySelector('#panel-shape').closest('label').style.display=t==='decorative'?'flex':'none'};section.querySelector('#dado-rail').addEventListener('change',syncMode);section.querySelector('#rail-auto').addEventListener('change',syncMode);section.querySelector('#typology').addEventListener('change',syncMode);syncMode();
  const $=id=>document.getElementById(id), num=name=>Number(form.elements[name].value);
  let selectedProposal=null,lastSignature='';
  const types={door:'Porte',window:'Fenêtre',radiator:'Radiateur'};
@@ -56,15 +58,16 @@
    add(svg,'rect',{x:ox,y:sy(base),width:w*s,height:base*s,fill:'#b4a48d'});
    add(svg,'rect',{x:ox,y:oy,width:w*s,height:cornice*s,fill:'#d8cbbb'});
    const blocked=obs.map(o=>({x:Number(o.x)-clearance,y:Number(o.y)-clearance,w:Number(o.width)+2*clearance,h:Number(o.height)+2*clearance}));
+   const manual=$('column-mode').value==='manual',desiredCols=Number($('column-count').value);
    const result=window.AtelierComposition.generate({
      bounds:limits,obstacles:obs,type:$('typology').value,shape:$('panel-shape').value,
-     cols:Number($('typology-cols').value),gapX:gap,gapY:num('gapY'),
+     cols:manual?desiredCols:3,gapX:gap,gapY:num('gapY'),
      dado:Number($('dado-height').value),upperPercent:Number($('upper-percent').value),clearance,profile
    });
-   const signature=JSON.stringify({limits,obs,type:$('typology').value,shape:$('panel-shape').value,cols:$('typology-cols').value,gap,clearance,profile,dado:$('dado-height').value,upperPercent:$('upper-percent').value,gapY:num('gapY'),rail:$('dado-rail').checked,railHeight:$('rail-height').value});
+   const signature=JSON.stringify({manual,desiredCols,limits,obs,type:$('typology').value,shape:$('panel-shape').value,cols:$('typology-cols').value,gap,clearance,profile,dado:$('dado-height').value,upperPercent:$('upper-percent').value,gapY:num('gapY'),rail:$('dado-rail').checked,railHeight:$('rail-height').value});
    if(signature!==lastSignature){selectedProposal=null;lastSignature=signature}
-   const proposals=result.candidates||[];
-   if(!proposals.some(p=>p.id===selectedProposal))selectedProposal=result.recommendedCandidateId;
+   const proposals=manual?(result.candidates||[]).filter(p=>p.columns===desiredCols):(result.candidates||[]);
+   if(!proposals.some(p=>p.id===selectedProposal))selectedProposal=proposals[0]?.id||null;
    const chosen=proposals.find(p=>p.id===selectedProposal);
    const panels=chosen?.panels||[],warning=result.warnings;
    const choices=$('proposal-choices');choices.replaceChildren();
@@ -86,7 +89,7 @@
    });
    // Rail is a separate physical profile, interrupted by doors and radiators.
    const railEnabled=$('dado-rail').checked&&$('typology').value!=='decorative';
-   const railY=Number($('rail-height').value),railProfile=Number($('rail-profile').value)/10;
+   const railY=$('rail-auto').checked?($('typology').value==='mixed'?limits.y+limits.h*(1-Number($('upper-percent').value)/100):Number($('dado-height').value)):Number($('rail-height').value),railProfile=Number($('rail-profile').value)/10;
    const railPieces=[];
    if(railEnabled&&Number.isFinite(railY)&&railY>base&&railY<h-cornice&&railProfile>0){
      let intervals=[[0,w]];
@@ -104,7 +107,7 @@
    $('result-count').textContent=String(panels.length);$('result-meters').textContent=fmt(total)+' m';$('result-bars').textContent=String(Math.ceil(total*(1+loss/100)*100/bar));$('result-conflicts').textContent=String(conflicts);
    const pieces=new Map();for(const p of panels)for(const len of [p.w,p.w,p.h,p.h]){const k=len.toFixed(1);pieces.set(k,(pieces.get(k)||0)+1)}
    $('result-cuts').innerHTML=([...pieces].sort((a,b)=>Number(b[0])-Number(a[0])).map(([length,count])=>'<tr><td>Cadre</td><td>'+count+'</td><td>'+fmt(Number(length))+' cm</td></tr>').join('')+railPieces.map(len=>'<tr><td>Cimaise (coupe droite)</td><td>1</td><td>'+fmt(len*100)+' cm</td></tr>').join(''))||'<tr><td colspan="3">Aucun cadre réalisable</td></tr>';
-   $('result-notice').textContent=[...warning,...(conflicts?[conflicts+' conflit(s) à corriger.']:[]),...(!panels.length?['Aucun panneau possible avec ces dimensions.']:[]),'Proposition décorative indicative : vérifier les dimensions et ajuster avant achat.'].join(' ');
+   $('result-notice').textContent=[...warning,...(manual&&!proposals.length?['Aucune composition à '+desiredCols+' colonnes : essayez le mode automatique.']:[]),...(conflicts?[conflicts+' conflit(s) à corriger.']:[]),...(!panels.length?['Aucun panneau possible avec ces dimensions.']:[]),'Proposition décorative indicative : vérifier les dimensions et ajuster avant achat.'].join(' ');
    $('result-notice').className=conflicts||!panels.length?'warn':'hint';
  }
  // The V2.1-A editor persists obstacles on input. Observe its editor for edits, additions and removal.
