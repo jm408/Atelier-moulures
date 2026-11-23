@@ -143,7 +143,7 @@
    }
    for(let i=0;i<next.length;i++)for(let j=i+1;j<next.length;j++){
      const a=next[i],b=next[j],dy=Math.min(a.y+a.h,b.y+b.h)-Math.max(a.y,b.y),dx=Math.min(a.x+a.w,b.x+b.w)-Math.max(a.x,b.x);
-     if(overlap(a,b)||(dy>0&&Math.max(a.x,b.x)-Math.min(a.x+a.w,b.x+b.w)<gapX-0.01)||(dx>0&&Math.max(a.y,b.y)-Math.min(a.y+a.h,b.y+b.h)<gapY-0.01))return 'Respectez les espacements entre les cadres.';
+     if(overlap(a,b))return 'Deux cadres se chevauchent.';
    }
    return '';
  }
@@ -168,7 +168,9 @@
    const error=validatePanel(d.panels,d.limits,d.blocked,num('gapX'),num('gapY'));
    $('panel-edit-warning').textContent=error;
    if(error){e.target.value=String(Number(previous.toFixed(1)));return;}
+   const spacingWarning=d.panels.some((a,i)=>d.panels.some((b,j)=>j>i&&((Math.min(a.y+a.h,b.y+b.h)-Math.max(a.y,b.y)>0&&Math.max(a.x,b.x)-Math.min(a.x+a.w,b.x+b.w)<num('gapX')-0.01)||(Math.min(a.x+a.w,b.x+b.w)-Math.max(a.x,b.x)>0&&Math.max(a.y,b.y)-Math.min(a.y+a.h,b.y+b.h)<num('gapY')-0.01))));
    panelDrafts.set(d.key,d.panels);calculate();
+   $('panel-edit-warning').textContent=spacingWarning?'Attention : espacement recommandé entre cadres non respecté. Vous pouvez conserver cette composition.':'';
    const fieldInput=panelTools.querySelector('[data-panel-field="'+field+'"]');
    if(fieldInput){fieldInput.focus({preventScroll:true});}
  });
