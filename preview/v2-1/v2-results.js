@@ -8,13 +8,13 @@
  const section=document.createElement('section');section.className='panel';section.innerHTML=`
  <h2>2. Composer les moulures</h2><label>Typologie <select id="typology"><option value="decorative">Cadres décoratifs</option><option value="base">Soubassement</option><option value="mixed">Composition mixte</option></select></label><label>Forme <select id="panel-shape"><option value="rectangle">Rectangles</option><option value="square">Carrés</option></select></label><label>Hauteur de soubassement depuis le sol (cm) <input id="dado-height" type="number" min="30" step="5" value="95"></label><label>Nombre de colonnes souhaité <input id="typology-cols" type="number" min="1" max="12" value="3"></label>
  <p class="hint">L’application propose une composition adaptée au mur. Les réglages détaillés restent facultatifs.</p>
- <details id="advanced"><summary style="cursor:pointer;font-weight:650;margin:16px 0">Ajuster la composition (facultatif)</summary><div id="composition-controls"></div><label>Disposition <select id="layout-mode" style="padding:8px;border-radius:7px"><option value="auto">Adaptée aux obstacles</option><option value="three">3 panneaux symétriques (mur libre)</option></select></label>
+ <details id="advanced"><summary style="cursor:pointer;font-weight:650;margin:16px 0">Ajuster la composition (facultatif)</summary><div id="composition-controls"></div><label>Répartition des cadres supérieurs (%) <input id="upper-percent" type="number" min="10" max="90" step="5" value="70"></label><label><input id="dado-rail" type="checkbox"> Ajouter une cimaise de séparation</label><label>Hauteur de la cimaise depuis le sol (cm) <input id="rail-height" type="number" min="30" step="5" value="95"></label><label>Largeur du profil de cimaise (mm) <input id="rail-profile" type="number" min="5" step="1" value="20"></label><label>Disposition <select id="layout-mode" style="padding:8px;border-radius:7px"><option value="auto">Adaptée aux obstacles</option><option value="three">3 panneaux symétriques (mur libre)</option></select></label>
  <p class="hint">Aide d’alignement : les panneaux d’une même zone sont répartis à largeur égale et à intervalles réguliers.</p><label>Cadres par zone libre <input id="zone-cols" type="number" min="1" max="8" step="1" value="1"></label>
  <label>Largeur du panneau central (cm) <input id="center-width" type="number" value="125" min="30" step="5"></label>
  <label>Dégagement autour des obstacles (cm) <input id="clearance" type="number" value="8" min="0" step="1"></label>
  </details><h2 style="margin-top:24px">3. Proposition recommandée</h2><div id="proposal-choices" class="buttons"></div><p id="proposal-explanation" class="hint"></p><p id="result-notice" class="hint" role="status"></p>
  <svg id="result-svg" viewBox="0 0 600 380" role="img" aria-label="Résultat : mur, ouvertures et panneaux calculés"></svg>
- <h3>Dimensions et quantités du résultat</h3><div class="stats"><div class="stat">Panneaux<strong id="result-count">—</strong></div><div class="stat">Baguettes théoriques<strong id="result-meters">—</strong></div><div class="stat">Barres estimées<strong id="result-bars">—</strong></div><div class="stat">Conflits<strong id="result-conflicts">—</strong></div></div>
+ <h3>Dimensions et quantités du résultat</h3><div class="stats"><div class="stat">Panneaux<strong id="result-count">—</strong></div><div class="stat">Baguettes théoriques<strong id="result-meters">—</strong></div><div class="stat">Barres estimées<strong id="result-bars">—</strong></div><div class="stat">Conflits<strong id="result-conflicts">—</strong></div><div class="stat">Cimaise<strong id="result-rail-meters">—</strong></div></div>
  <p class="hint">Estimations des seuls cadres affichés. Les plinthes et corniches ne sont pas comprises dans ce métré. La découpe réelle et les dégagements doivent être vérifiés sur place.</p>
  <h3>Liste des coupes des cadres à 45°</h3><table><thead><tr><th>Pièce</th><th>Quantité</th><th>Longueur extérieure</th></tr></thead><tbody id="result-cuts"></tbody></table>`;
  obstaclePanel.after(section);
@@ -34,7 +34,7 @@
  modeSelect.innerHTML='<option value="auto">Automatique — obstacles</option><option value="regular">Régulier — grille</option><option value="three">Personnalisé — 3 panneaux symétriques</option>';
  const controls=section.querySelector('#composition-controls');
  controls.insertAdjacentHTML('afterbegin','<div id="regular-controls"><label>Colonnes <input id="regular-cols" type="number" min="1" max="12" value="3"></label><label>Rangées <input id="regular-rows" type="number" min="1" max="5" value="1"></label></div>');
- const syncMode=()=>{section.querySelector('#regular-controls').style.display='none';section.querySelector('#dado-height').closest('label').style.display=section.querySelector('#typology').value==='decorative'?'none':'flex';section.querySelector('#panel-shape').closest('label').style.display=section.querySelector('#typology').value==='decorative'?'flex':'none'};section.querySelector('#typology').addEventListener('change',syncMode);syncMode();
+ const syncMode=()=>{const t=section.querySelector('#typology').value,rail=section.querySelector('#dado-rail').checked;section.querySelector('#regular-controls').style.display='none';section.querySelector('#dado-height').closest('label').style.display=t==='base'?'flex':'none';section.querySelector('#upper-percent').closest('label').style.display=t==='mixed'?'flex':'none';section.querySelector('#dado-rail').closest('label').style.display=t==='decorative'?'none':'flex';section.querySelector('#rail-height').closest('label').style.display=t!=='decorative'&&rail?'flex':'none';section.querySelector('#rail-profile').closest('label').style.display=t!=='decorative'&&rail?'flex':'none';section.querySelector('#panel-shape').closest('label').style.display=t==='decorative'?'flex':'none'};section.querySelector('#dado-rail').addEventListener('change',syncMode);section.querySelector('#typology').addEventListener('change',syncMode);syncMode();
  const $=id=>document.getElementById(id), num=name=>Number(form.elements[name].value);
  let selectedProposal=null,lastSignature='';
  const types={door:'Porte',window:'Fenêtre',radiator:'Radiateur'};
@@ -59,18 +59,18 @@
    const result=window.AtelierComposition.generate({
      bounds:limits,obstacles:obs,type:$('typology').value,shape:$('panel-shape').value,
      cols:Number($('typology-cols').value),gapX:gap,gapY:num('gapY'),
-     dado:Number($('dado-height').value),clearance,profile
+     dado:Number($('dado-height').value),upperPercent:Number($('upper-percent').value),clearance,profile
    });
-   const signature=JSON.stringify({limits,obs,type:$('typology').value,shape:$('panel-shape').value,cols:$('typology-cols').value,gap,clearance,profile,dado:$('dado-height').value,gapY:num('gapY')});
+   const signature=JSON.stringify({limits,obs,type:$('typology').value,shape:$('panel-shape').value,cols:$('typology-cols').value,gap,clearance,profile,dado:$('dado-height').value,upperPercent:$('upper-percent').value,gapY:num('gapY'),rail:$('dado-rail').checked,railHeight:$('rail-height').value});
    if(signature!==lastSignature){selectedProposal=null;lastSignature=signature}
    const proposals=result.candidates||[];
    if(!proposals.some(p=>p.id===selectedProposal))selectedProposal=result.recommendedCandidateId;
    const chosen=proposals.find(p=>p.id===selectedProposal);
    const panels=chosen?.panels||[],warning=result.warnings;
    const choices=$('proposal-choices');choices.replaceChildren();
-   proposals.slice(0,3).forEach((p,i)=>{
+   proposals.slice(0,6).forEach((p,i)=>{
      const button=document.createElement('button');button.type='button';
-     button.textContent=(i===0?'Recommandée':'Variante '+i)+' · '+p.panels.length+' cadres';
+     button.textContent=(i===0?'Recommandée · ':'')+p.columns+' colonne'+(p.columns>1?'s':'')+' · '+p.panels.length+' cadres';
      button.className=p.id===selectedProposal?'':'secondary';
      button.onclick=()=>{selectedProposal=p.id;calculate()};
      choices.append(button);
@@ -84,10 +84,26 @@
      add(svg,'rect',{'data-obstacle':i,style:'touch-action:none;cursor:grab',x:ox+x*s,y:sy(y+hh),width:ww*s,height:hh*s,fill:o.type==='window'?'#a8cfdd':o.type==='door'?'#ddd1bf':'#c3b8aa','fill-opacity':'.9',stroke:'#52635d','stroke-width':1.5});
      add(svg,'text',{'pointer-events':'none',x:ox+(x+ww/2)*s,y:sy(y+hh/2),'text-anchor':'middle','dominant-baseline':'middle','font-size':11,fill:'#273c39'},(types[o.type]||'Obstacle')+' '+(i+1));
    });
+   // Rail is a separate physical profile, interrupted by doors and radiators.
+   const railEnabled=$('dado-rail').checked&&$('typology').value!=='decorative';
+   const railY=Number($('rail-height').value),railProfile=Number($('rail-profile').value)/10;
+   const railPieces=[];
+   if(railEnabled&&Number.isFinite(railY)&&railY>base&&railY<h-cornice&&railProfile>0){
+     let intervals=[[0,w]];
+     for(const o of obs){
+       const x=Number(o.x),y=Number(o.y),ow=Number(o.width),oh=Number(o.height);
+       if(y<=railY+railProfile/2&&y+oh>=railY-railProfile/2){
+         intervals=intervals.flatMap(([a,b])=>[[a,Math.min(b,x-clearance)],[Math.max(a,x+ow+clearance),b]].filter(([l,r])=>r-l>0.01));
+       }
+     }
+     for(const [a,b] of intervals){railPieces.push((b-a)/100);add(svg,'line',{x1:ox+a*s,x2:ox+b*s,y1:sy(railY),y2:sy(railY),stroke:'#836f59','stroke-width':Math.max(2,railProfile*s)})}
+   }
+   const railTotal=railPieces.reduce((a,b)=>a+b,0);
+   $('result-rail-meters').textContent=railEnabled?fmt(railTotal)+' m':'Non incluse';
    const total=panels.reduce((sum,p)=>sum+2*(p.w+p.h),0)/100,conflicts=collisions.length+invalidObs.length;
    $('result-count').textContent=String(panels.length);$('result-meters').textContent=fmt(total)+' m';$('result-bars').textContent=String(Math.ceil(total*(1+loss/100)*100/bar));$('result-conflicts').textContent=String(conflicts);
    const pieces=new Map();for(const p of panels)for(const len of [p.w,p.w,p.h,p.h]){const k=len.toFixed(1);pieces.set(k,(pieces.get(k)||0)+1)}
-   $('result-cuts').innerHTML=[...pieces].sort((a,b)=>Number(b[0])-Number(a[0])).map(([length,count])=>'<tr><td>Cadre</td><td>'+count+'</td><td>'+fmt(Number(length))+' cm</td></tr>').join('')||'<tr><td colspan="3">Aucun cadre réalisable</td></tr>';
+   $('result-cuts').innerHTML=([...pieces].sort((a,b)=>Number(b[0])-Number(a[0])).map(([length,count])=>'<tr><td>Cadre</td><td>'+count+'</td><td>'+fmt(Number(length))+' cm</td></tr>').join('')+railPieces.map(len=>'<tr><td>Cimaise (coupe droite)</td><td>1</td><td>'+fmt(len*100)+' cm</td></tr>').join(''))||'<tr><td colspan="3">Aucun cadre réalisable</td></tr>';
    $('result-notice').textContent=[...warning,...(conflicts?[conflicts+' conflit(s) à corriger.']:[]),...(!panels.length?['Aucun panneau possible avec ces dimensions.']:[]),'Proposition décorative indicative : vérifier les dimensions et ajuster avant achat.'].join(' ');
    $('result-notice').className=conflicts||!panels.length?'warn':'hint';
  }
