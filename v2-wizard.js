@@ -21,20 +21,29 @@
  dialog.innerHTML='<div class="dialog-head"><h2>Réglages de la composition</h2><button type="button" id="dialog-close" class="secondary">Fermer ✕</button></div><p class="hint">Vérifiez notamment la longueur réelle des baguettes avant de préparer vos achats.</p><div id="dialog-controls"></div><div class="dialog-actions"><button type="button" id="dialog-done">Appliquer et fermer</button></div>';
  document.body.append(dialog);
  const controls=document.querySelector('#composition-controls');
- dialog.querySelector('#dialog-controls').append(controls);
+ const compFields=document.querySelector('#composition-fields');
+ const supply=document.createElement('div');supply.id='supply-controls';
+ const bar=document.querySelector('[name="bar"]'),loss=document.querySelector('[name="loss"]'),profile=document.querySelector('[name="profile"]');
+ [profile,bar,loss].forEach(input=>{if(input?.closest('label'))supply.append(input.closest('label'))});
+ const supplyTitle=document.createElement('h3');supplyTitle.textContent='Fournitures — longueurs et pertes';
+ dialog.querySelector('#dialog-controls').append(supplyTitle,supply);
+ const geometry=document.createElement('div');geometry.id='style-geometry';
+ geometry.innerHTML='<h3>Marges et espacements</h3>';
+ geometry.append(compFields);
+ document.querySelector('#style-essentials').after(geometry);
+ while(controls.firstChild)geometry.append(controls.firstChild);
  advanced.remove();
  // No silent purchasing estimate: require explicit supplier stock length before confirmation.
 
- const launch=document.createElement('button');launch.type='button';launch.className='secondary';launch.id='open-composition';launch.textContent='⚙ Réglages et fournitures';
+ const launch=document.createElement('button');launch.type='button';launch.className='secondary';launch.id='open-composition';launch.textContent='📏 Fournitures : renseigner les baguettes';
  composition.append(launch);
- const launchResult=launch.cloneNode(true);launchResult.id='open-composition-result';result.prepend(launchResult);
+ const launchResult=launch.cloneNode(true);launchResult.id='open-composition-result';summary.prepend(launchResult);
  function openDialog(){dialog.showModal()}
  function closeDialog(){dialog.close()}
  launch.addEventListener('click',openDialog);launchResult.addEventListener('click',openDialog);
  dialog.querySelector('#dialog-close').addEventListener('click',closeDialog);
  dialog.querySelector('#dialog-done').addEventListener('click',closeDialog);
  dialog.addEventListener('click',e=>{if(e.target===dialog)closeDialog()});
- const bar=document.querySelector('[name="bar"]');
  if(bar){bar.value='';bar.placeholder='À renseigner';bar.required=true;}
  const barRow=bar?.closest('label');
  if(barRow){barRow.insertAdjacentHTML('afterend','<label class="bar-confirm"><input type="checkbox" id="bar-confirm"> J’ai vérifié la longueur réelle de mes baguettes</label>')}
@@ -49,15 +58,17 @@
 
  const refine=document.createElement('div');refine.id='proposal-refine';refine.innerHTML=`
  <div class="refine-header"><strong>Ajuster mon plan</strong><span class="hint">Les changements recalculent la composition.</span></div>
- <label>Nombre de colonnes <input id="proposal-cols" type="number" min="1" max="8" step="1" value="3"></label>
- <label><input id="proposal-auto" type="checkbox" checked> Recommandation automatique</label>
+ <label>Nombre de colonnes <input id="proposal-cols" type="number" min="1" max="8" step="1" value="3" disabled></label>
+ <label class="proposal-auto-label">Recommandation automatique <input id="proposal-auto" type="checkbox" checked></label>
  <div id="proposal-obstacle-fields"></div>
  `;
  result.insertBefore(refine,result.querySelector('#proposal-choices'));
  const auto=refine.querySelector('#proposal-auto'),count=refine.querySelector('#proposal-cols');
  const mode=document.querySelector('#column-mode'),manualCount=document.querySelector('#column-count');
- const syncColumn=()=>{mode.value=auto.checked?'auto':'manual';manualCount.value=count.value;mode.dispatchEvent(new Event('change',{bubbles:true}));};
- auto.addEventListener('change',syncColumn);count.addEventListener('input',()=>{auto.checked=false;syncColumn()});
+ const syncColumn=()=>{count.disabled=auto.checked;mode.value=auto.checked?'auto':'manual';if(!auto.checked)manualCount.value=count.value;mode.dispatchEvent(new Event('change',{bubbles:true}));};
+ const updateAutoColumns=()=>{if(!auto.checked)return;const active=document.querySelector('#proposal-choices button:not(.secondary)');const n=active?.textContent?.match(/(\\d+) colonne/);if(n)count.value=n[1]};
+ new MutationObserver(updateAutoColumns).observe(document.querySelector('#proposal-choices'),{childList:true,subtree:true,attributes:true,attributeFilter:['class']});
+ auto.addEventListener('change',()=>{syncColumn();updateAutoColumns()});count.addEventListener('input',()=>{if(!auto.checked)syncColumn()});
  function obstacleEditor(){
   let obstacles=[];try{obstacles=JSON.parse(localStorage.getItem('atelier-moulures-obstacles-v2')||'{}').obstacles||[]}catch{}
   refine.querySelector('#proposal-obstacle-fields').innerHTML=obstacles.map((o,i)=>`<fieldset style="border:1px solid #ddd8cd;border-radius:8px;margin:10px 0"><legend>${({door:'Porte',window:'Fenêtre',radiator:'Radiateur'})[o.type]||'Obstacle'} ${i+1}</legend><div class="refine-grid">${[['x','X (cm)'],['y','Y (cm)'],['width','Largeur (cm)'],['height','Hauteur (cm)']].map(([field,label])=>`<label>${label}<input type="number" step=".1" min="0" data-refine-index="${i}" data-refine-field="${field}" value="${Number(o[field])}"></label>`).join('')}</div></fieldset>`).join('');
@@ -89,6 +100,11 @@
  .refine-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px 16px}
  .refine-grid input{width:90px}
  #proposal-refine input[type=checkbox]{width:auto}
+ #proposal-refine .proposal-auto-label{display:flex;justify-content:space-between;flex-direction:row;gap:12px}
+ #proposal-refine .proposal-auto-label input{margin:0;flex:none}
+ #proposal-cols:disabled{background:#e4e7e4;color:#707c77;cursor:not-allowed}
+ #style-geometry{padding:12px 16px;background:#f5f3ee;border-radius:10px;margin:12px 0}
+ #style-geometry h3{margin-top:4px}
  #wizard-result svg{margin-top:12px}
  #composition-dialog{width:min(720px,94vw);max-height:88vh;border:0;border-radius:14px;padding:24px;box-shadow:0 16px 60px #0005;overflow:auto}
  #composition-dialog::backdrop{background:#1c292bb8}
@@ -103,7 +119,7 @@
  const steps=[[wall,obstacles],[composition],[result],[summary]];
  let step=0;
  function show(n){
-  step=Math.max(0,Math.min(3,n));if(step===2)obstacleEditor();
+  step=Math.max(0,Math.min(3,n));if(step===2){obstacleEditor();updateAutoColumns()}
   steps.forEach((group,i)=>group.forEach(p=>p.style.display=i===step?'':'none'));
   nav.querySelectorAll('button').forEach((b,i)=>{b.classList.toggle('active',i===step);b.setAttribute('aria-current',i===step?'step':'false')});
   document.querySelector('#wizard-prev').disabled=step===0;
