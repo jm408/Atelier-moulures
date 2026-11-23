@@ -87,6 +87,10 @@
    const invalidObs=obs.filter(o=>![o.x,o.y,o.width,o.height].every(v=>Number.isFinite(Number(v)))||Number(o.x)<0||Number(o.y)<0||Number(o.x)+Number(o.width)>w||Number(o.y)+Number(o.height)>h||Number(o.width)<=0||Number(o.height)<=0);
    const collisions=panels.filter(p=>blocked.some(o=>overlap(p,o)));
    panels.forEach((p,i)=>add(svg,'rect',{'data-panel':i,tabindex:0,role:'button','aria-label':'Modifier le cadre '+(i+1),style:'cursor:pointer;transition:stroke-width .12s,fill .12s',x:ox+p.x*s,y:sy(p.y+p.h),width:p.w*s,height:p.h*s,fill:selectedPanelIndex===i?'#c9d9cd':'transparent','fill-opacity':selectedPanelIndex===i?'.45':'1',stroke:collisions.includes(p)?'#c02929':selectedPanelIndex===i?'#244447':'#9a7d5c','stroke-width':Math.max(1.5,profile*s)*(selectedPanelIndex===i?1.7:1)}));
+   if(selectedPanelIndex!==null&&panels[selectedPanelIndex]){
+     const p=panels[selectedPanelIndex];
+     add(svg,'circle',{'data-frame-handle':selectedPanelIndex,role:'button','aria-label':'Redimensionner le cadre '+(selectedPanelIndex+1),cx:ox+(p.x+p.w)*s,cy:sy(p.y),r:7,fill:'#244447',stroke:'#fff','stroke-width':2,style:'cursor:nwse-resize;touch-action:none'});
+   }
    renderPanelEditor(panels,limits,blocked,draftKey);
    obs.forEach((o,i)=>{const x=Number(o.x),y=Number(o.y),ww=Number(o.width),hh=Number(o.height);if(![x,y,ww,hh].every(Number.isFinite))return;
      add(svg,'rect',{'data-obstacle':i,style:'touch-action:none;cursor:grab',x:ox+x*s,y:sy(y+hh),width:ww*s,height:hh*s,fill:o.type==='window'?'#a8cfdd':o.type==='door'?'#ddd1bf':'#c3b8aa','fill-opacity':'.9',stroke:'#52635d','stroke-width':1.5});
@@ -117,7 +121,7 @@
  }
  // Direct frame editing in step 3; changes are kept separately for each proposed layout.
  const panelTools=document.createElement('div');panelTools.id='panel-tools';
- panelTools.innerHTML='<h3>Personnaliser les cadres</h3><p class="hint">Sélectionnez un cadre en cliquant sur sa surface ou son contour. Les flèches ajustent de 1 cm ; saisissez une décimale pour une précision de 0,1 cm.</p><div id="panel-edit-fields"></div><div class="buttons"><button type="button" id="panel-add" class="secondary">+ Ajouter un cadre</button><button type="button" id="panel-reset" class="secondary">Restaurer la proposition</button></div><p id="panel-edit-warning" class="warn" role="status"></p>';
+ panelTools.innerHTML='<h3>Personnaliser les cadres</h3><p class="hint">Cliquez sur un cadre et faites-le glisser pour le déplacer. Tirez la poignée ronde en bas à droite pour le redimensionner. Les champs permettent un ajustement précis au centimètre.</p><div id="panel-edit-fields"></div><div class="buttons"><button type="button" id="panel-add" class="secondary">+ Ajouter un cadre</button><button type="button" id="panel-reset" class="secondary">Restaurer la proposition</button></div><p id="panel-edit-warning" class="warn" role="status"></p>';
  $('result-svg').after(panelTools);
  function renderPanelEditor(panels,limits,blocked,key){
    const box=$('panel-edit-fields');box.replaceChildren();
@@ -194,6 +198,17 @@
  let drag=null;
  const resultSvg=$('result-svg');
  resultSvg.addEventListener('pointerdown',e=>{
+   const frameHandle=e.target.closest('[data-frame-handle]'),frame=e.target.closest('[data-panel]');
+   if(frameHandle||frame){
+     const index=Number((frameHandle||frame).getAttribute(frameHandle?'data-frame-handle':'data-panel'));
+     selectedPanelIndex=index;
+     const d=currentDraft(),p=d.panels[index];if(!p)return;
+     const box=resultSvg.getBoundingClientRect(),vb=resultSvg.viewBox.baseVal;
+     const scale=Math.min(540/num('w'),330/num('h'));
+     const pxPerCm=scale*box.width/vb.width;
+     drag={kind:'frame',index,mode:frameHandle?'resize':'move',startX:e.clientX,startY:e.clientY,original:{...p},pxPerCm,moved:false};
+     resultSvg.setPointerCapture(e.pointerId);e.preventDefault();calculate();return;
+   }
    const target=e.target.closest('[data-obstacle]');if(!target)return;
    const index=Number(target.getAttribute('data-obstacle')),obs=readObs(),o=obs[index];if(!o)return;
    const box=resultSvg.getBoundingClientRect(),vb=resultSvg.viewBox.baseVal,wallW=num('w'),wallH=num('h');
@@ -203,6 +218,21 @@
  });
  resultSvg.addEventListener('pointermove',e=>{
    if(!drag)return;
+   if(drag.kind==='frame'){
+     const d=currentDraft(),p=d.panels[drag.index];if(!p)return;
+     const dx=(e.clientX-drag.startX)/drag.pxPerCm,dy=-(e.clientY-drag.startY)/drag.pxPerCm;
+     if(Math.abs(dx)>0.2||Math.abs(dy)>0.2)drag.moved=true;
+     const round=v=>Math.round(v*10)/10;
+     if(drag.mode==='move'){
+       p.x=round(drag.original.x+dx);p.y=round(drag.original.y+dy);
+     }else{
+       p.w=round(drag.original.w+dx);p.h=round(drag.original.h+dy);
+     }
+     const error=validatePanel(d.panels,d.limits,d.blocked,num('gapX'),num('gapY'));
+     if(error){$('panel-edit-warning').textContent=error;return;}
+     panelDrafts.set(d.key,d.panels);calculate();
+     $('panel-edit-warning').textContent='';e.preventDefault();return;
+   }
    const obs=readObs(),o=obs[drag.index];if(!o)return;
    const x=drag.x+(e.clientX-drag.startX)/drag.pxPerCm,y=drag.door?0:drag.y-(e.clientY-drag.startY)/drag.pxPerCm;
    o.x=Math.round(Math.max(0,Math.min(num('w')-Number(o.width),x))*10)/10;
