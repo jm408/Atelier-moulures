@@ -1,0 +1,2 @@
+# Composition freeze
+Baseline: V2.5.11 engine, unchanged. Advisory fallback only in automatic mixed mode with obstacles. Initial thresholds: score 80, uniformity 0.75, max aspect ratio 4, both bands present. Recommend highest scoring available simple typology. Explicit user acceptance; manual editing remains available. Browser acceptance pending. No further algorithm refinements planned; next: technical dimensions, project validation, PDF.
